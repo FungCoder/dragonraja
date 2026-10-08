@@ -1,0 +1,13 @@
+; Merge these fields into the existing [network] section of dragon.ini.
+; Keep the original non-zero ver and all other client settings.
+[network]
+host1=127.0.0.1
+host2=127.0.0.1
+server_count=1
+name1=Local
+name1_host1=127.0.0.1
+name1_host2=127.0.0.1
+ServerSet=0
+proxy_port=3000
+agent_port=7000
+direct_agent=1

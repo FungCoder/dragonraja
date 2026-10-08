@@ -1,0 +1,47 @@
+; Single-host installation example. Set your own database credentials and paths.
+
+[server_info]
+path=D:\DragonRajaServer\resources
+own_server_ip_for_server=127.0.0.1
+own_server_port_for_server=4100
+own_server_ip_for_user=127.0.0.1
+own_server_port_for_user=4100
+primary_proxy_server_ip=127.0.0.1
+primary_proxy_server_port=3000
+secondary_proxy_server_ip=127.0.0.1
+secondary_proxy_server_port=0
+
+[option]
+path=D:\DragonRajaServer\resources
+FREE_LEVEL=0
+
+[nation_set]
+nation_name=CHINA
+BETA_SERVER=1
+RookieAbleLevel=30
+DoubtUserTableLimitDay=60
+RegistDate=2026/06/01
+
+[billing_server_info]
+billing_server_num=1
+billing_server_info___ip0=127.0.0.1
+billing_server_info_port0=0
+
+[db_account]
+dragon_id=
+dragon_pw=
+total_id=
+total_pw=
+chrlog_id=
+chrlog_pw=
+
+[Thai Limited]
+StartTime=22
+EndTime=6
+Age=18
+
+[mysql_conn]
+driver=MySQL ODBC 9.7 ANSI Driver
+server=127.0.0.1
+port=3306
+option=3

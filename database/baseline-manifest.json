@@ -1,0 +1,1717 @@
+{
+  "Date": "2026-10-08",
+  "MySQLVersion": "8.0.12",
+  "Source": "live-local-databases",
+  "RestoreValidation": "passed-isolated-instance",
+  "Files": [
+    {
+      "File": "dragonraja.sql",
+      "Bytes": 3906425,
+      "SHA256": "958455F8898C081E5E51DE551365170626D86314331C2061D58D1D0167EDB172"
+    },
+    {
+      "File": "dragonraja_total.sql",
+      "Bytes": 37879,
+      "SHA256": "842E54619DE1D41F566745CE91BD43FD06B736F150D28375303DD16EA2F067E9"
+    },
+    {
+      "File": "dragonraja_log.sql",
+      "Bytes": 20101,
+      "SHA256": "13B1F0922CD058FA272E351483D66DD365E239D5A1BA39047EF186F5E944DFB1"
+    }
+  ],
+  "Tables": [
+    {
+      "Database": "dragonraja",
+      "Table": "ability_divide",
+      "Rows": 126,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "ability_edit",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "ability_limit",
+      "Rows": 30,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "abilityresetdate",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "ai_actionbag",
+      "Rows": 59,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "ai_bossstatus",
+      "Rows": 20,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "ai_physicalattack_bag",
+      "Rows": 84,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "alive_zone",
+      "Rows": 12,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "arena_bonus_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "arena_game_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "arena_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "arena_team_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "basicitembag",
+      "Rows": 124,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "battle_skill_point",
+      "Rows": 2,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "bbs",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "beta_id",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "betaok",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "black_list",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "blockiplist",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "box_item",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "boxitemidcount",
+      "Rows": 0,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "charidcount",
+      "Rows": 1,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "chocolate",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "chocolate_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "chr_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "chr_info2",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "chr_log_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "colossus",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "colossus_rank",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "colossus_rank_read",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "deleted_chr_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "deleted_chr_info2",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "diseasemain",
+      "Rows": 12,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "distribute",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "doubtuser",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "dtproperties",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "dual_info",
+      "Rows": 6,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "effect",
+      "Rows": 700,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "effect_mid",
+      "Rows": 500,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "effect_old",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "em_groupinfo",
+      "Rows": 18,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_giveitem_id",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_mapmove",
+      "Rows": 0,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_mapmove_now",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_message",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_monster",
+      "Rows": 138,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_monsteritem",
+      "Rows": 21,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_npc",
+      "Rows": 114,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_npcitem",
+      "Rows": 22,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_npcitem_bag",
+      "Rows": 23,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_npcitem_recv_id",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_object",
+      "Rows": 3,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_sound",
+      "Rows": 3,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_startitem",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_startitem_recv_id",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_treasure_item",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_treasure_level",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "event_treasure_xy",
+      "Rows": 477,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "eventrareitem",
+      "Rows": 66,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "eventuser",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "farm1",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "farm2",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "farm3",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "freetestid",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "friend_list",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "function_group",
+      "Rows": 7,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "gamble_item",
+      "Rows": 1895,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "gender",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "get_id",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "gm_table",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "gmquest",
+      "Rows": 18,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "god_meeting_time",
+      "Rows": 3,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "guardian_list",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "guardstonetbl",
+      "Rows": 15,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "guild_house",
+      "Rows": 73,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "guild_item",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "guild_list",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "guild_mail",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "guild_member_list",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "halloffametbl",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "hallofwartbl",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "hunt_group_info",
+      "Rows": 486,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "hunt_info",
+      "Rows": 306,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "hunt_monster_info",
+      "Rows": 793,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "hunt_place_info",
+      "Rows": 711,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "hunter_list",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_accessory",
+      "Rows": 122,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_armor",
+      "Rows": 324,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_change",
+      "Rows": 1067,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_cook",
+      "Rows": 112,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_disposable",
+      "Rows": 100,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_etc",
+      "Rows": 301,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_etc_old",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_function",
+      "Rows": 26,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_grade",
+      "Rows": 18,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_herb",
+      "Rows": 23,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_legend",
+      "Rows": 55,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_legend_bonus",
+      "Rows": 55,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_mineral",
+      "Rows": 51,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_multirare",
+      "Rows": 17,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_mutant",
+      "Rows": 115,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_mutant_kind",
+      "Rows": 201,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_owner_tbl",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_plant",
+      "Rows": 26,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_potion",
+      "Rows": 30,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_rare",
+      "Rows": 108,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_symbol",
+      "Rows": 23,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_symbol_ability1",
+      "Rows": 5,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_symbol_ability2",
+      "Rows": 5,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_tool",
+      "Rows": 28,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "item_weapon",
+      "Rows": 967,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "itemcheck",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "itemcontrol",
+      "Rows": 123,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "itemcontrolpercent",
+      "Rows": 29,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "itemfallpercent",
+      "Rows": 62,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "itemjoin",
+      "Rows": 744,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "itemlimitmgrtable",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "itemlist_havelimit",
+      "Rows": 310,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "itemlog",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "itemsbox_new",
+      "Rows": 35,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "learnitemconvert",
+      "Rows": 27,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "login_count",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "login_count_old",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "login_log",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "login_name",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "logintable",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "lottery_date",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "lotto_event",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "lotto_setting",
+      "Rows": 1,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "lotto_users",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "ls_act",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "magic",
+      "Rows": 189,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "magic_bag",
+      "Rows": 21,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "magic_mid",
+      "Rows": 148,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "magic_old",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "mail",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "mail2",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "mailbody",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "mailbody2",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "maildata",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "maildata2",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "map_info",
+      "Rows": 103,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "map_info_pvp",
+      "Rows": 103,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "map_user",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "mapname",
+      "Rows": 52,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "mapnameinfo",
+      "Rows": 40,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "mapserverinfo",
+      "Rows": 10,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "merchantbackup",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "merchantseller",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "mon_bag",
+      "Rows": 62,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "monstername",
+      "Rows": 2,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "moveid",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "nation_info",
+      "Rows": 7,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "nation_item",
+      "Rows": 165,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "nationwar_exp",
+      "Rows": 110,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "newweapondatatbl",
+      "Rows": 27,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "noid",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "npc_ai_control",
+      "Rows": 65,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "npc_generation",
+      "Rows": 97,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "npc_generation_sp",
+      "Rows": 397,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "npc_generation_sp_old_broken",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "npc_info",
+      "Rows": 1,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "npc_lavor",
+      "Rows": 23,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "npc_lv2exp",
+      "Rows": 255,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "npc_lv2exp_old",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "npc_namebygender",
+      "Rows": 8915,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "openschool",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "prisonerlist",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "prisoninfo",
+      "Rows": 73,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "public_bbs",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "quest_in_map",
+      "Rows": 50,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "quest_info_bystep",
+      "Rows": 38,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "rare_group",
+      "Rows": 18,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "rare_probability",
+      "Rows": 101,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "rareitembag",
+      "Rows": 81,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "recv_mail_name",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "redcross",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "requital_item",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "requital_list",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "reset_inv2",
+      "Rows": 7,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "sadonixcontrol",
+      "Rows": 1,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "sadonixcontrolorigin",
+      "Rows": 24,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "salvation_name",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "savewhitedayevent",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "scenario_dungeon",
+      "Rows": 3,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "scenario_dungeon_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "scenario_dungeon_map",
+      "Rows": 12,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "scenario_dungeon_startup",
+      "Rows": 8,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "scenario_trap",
+      "Rows": 114,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "server_meta",
+      "Rows": 3,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "server_status",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "skill",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "skill_exp",
+      "Rows": 101,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "skill_lvexp",
+      "Rows": 101,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "skill_table",
+      "Rows": 112,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "skillmain",
+      "Rows": 98,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "skillmain_3",
+      "Rows": 91,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "skillmaptable",
+      "Rows": 43,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "special_item",
+      "Rows": 246,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "special_item_0119",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "special_item_1031_back",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "storefarm1",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "vote",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "vote_info",
+      "Rows": 7,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "vote_regist",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "vw_item_all",
+      "Rows": 3525,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "warfieldmonstertbl",
+      "Rows": 1168,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "warfieldtbl",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "warstartuptbl",
+      "Rows": 12,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "weapondatatbl",
+      "Rows": 4,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "weapontbl",
+      "Rows": 30,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "wizard1",
+      "Rows": 1080,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja",
+      "Table": "zipcode",
+      "Rows": 8973,
+      "DataPolicy": "game-baseline"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "accessablegmtoolipaddress",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "chr_log_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "doubtuser",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "dtproperties",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "ip_account",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "ip_use",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "itemlog",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "log_item_event",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "login_log",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "logintab",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "logintable",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "pointtab",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "rareitemlog",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "rarelog",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "sadonixcontrol",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "sadonixcontrolorigin",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_channeli",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_ip",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_joyque",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_kornetworld",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_mezzy",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_netsgo",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_nio",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_thrunet",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_type",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_log",
+      "Table": "time_unitel",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "cdkey",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "chr_info2_del",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "chr_info_del",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "chr_log_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "chr_log_info_??",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "chr_log_info_del",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "chr_log_info_del1",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "chr_log_info_원본",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "dtproperties",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "ip_account",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "ip_use",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "login_log",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "logintab",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "logintable",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "pointtab",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "rm_authority_set",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "rm_log",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "rm_log_extension",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "rm_log_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "rm_now_repair",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "rm_server_info",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "rm_server_info2",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "rm_server_info_kyo",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "rm_server_status",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_channeli",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_ip",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_joyque",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_kornetworld",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_mezzy",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_netsgo",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_nio",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_thrunet",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_type",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "time_unitel",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "web_admin",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "web_adminhistory",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "web_buymoneyclass",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "web_card",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "web_ddb",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "web_download",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "web_dp",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "web_message",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    },
+    {
+      "Database": "dragonraja_total",
+      "Table": "web_news",
+      "Rows": 0,
+      "DataPolicy": "schema-only"
+    }
+  ]
+}

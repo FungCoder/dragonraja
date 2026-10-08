@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32"><Configuration>Release</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals"><ProjectGuid>{A43EECD9-EBFC-4FDC-8D98-CFE9B5EE6E46}</ProjectGuid><RootNamespace>dragon</RootNamespace><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType><UseDebugLibraries>false</UseDebugLibraries><PlatformToolset>v143</PlatformToolset><CharacterSet>MultiByte</CharacterSet><WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"><OutDir>$(ProjectDir)..\..\..\客户端\dragonraja-online\</OutDir><IntDir>$(ProjectDir)Release\</IntDir><TargetName>dragonraja</TargetName></PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile><WarningLevel>Level3</WarningLevel><Optimization>Disabled</Optimization><PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_MBCS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions><RuntimeLibrary>MultiThreaded</RuntimeLibrary><LanguageStandard>stdcpp14</LanguageStandard><AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories><AdditionalOptions>/permissive /Zc:forScope- /FS /wd4819 /wd4244 /wd4267 %(AdditionalOptions)</AdditionalOptions><ForcedIncludeFiles>LegacyCompat.h;%(ForcedIncludeFiles)</ForcedIncludeFiles><PrecompiledHeader>Use</PrecompiledHeader><PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile></ClCompile>
+    <Link><SubSystem>Windows</SubSystem><GenerateDebugInformation>true</GenerateDebugInformation><AdditionalOptions>/SAFESEH:NO /NODEFAULTLIB:libc.lib /ALTERNATENAME:?Initial@CHSEL_STREAM@@QAEHUHSEL_INITIAL@@@Z=?Initial@CHSEL_STREAM@@QAE_HUHSEL_INITIAL@@@Z /ALTERNATENAME:?Encrypt@CHSEL_STREAM@@QAE_NPADH@Z=?Encrypt@CHSEL_STREAM@@QAE_NPAD_H@Z /ALTERNATENAME:?Decrypt@CHSEL_STREAM@@QAE_NPADH@Z=?Decrypt@CHSEL_STREAM@@QAE_NPAD_H@Z /ALTERNATENAME:?GetCRCConvertInt@CHSEL_STREAM@@QBEHXZ=?GetCRCConvertInt@CHSEL_STREAM@@QBE_HXZ %(AdditionalOptions)</AdditionalOptions><AdditionalLibraryDirectories>$(ProjectDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories><AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;uxtheme.lib;windowscodecs.lib;wsock32.lib;ws2_32.lib;dxguid.lib;ddraw.lib;dinput8.lib;winmm.lib;dsound.lib;ijl11.lib;amstrmid.lib;strmiids.lib;quartz.lib;oldnames.lib;DesDll.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup><ClCompile Include="*.cpp" Exclude="StdAfx.cpp;SecuritySystem.cpp" /><ClCompile Include="StdAfx.cpp"><PrecompiledHeader>Create</PrecompiledHeader></ClCompile><ResourceCompile Include="dragon.rc" /><ClInclude Include="*.h" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

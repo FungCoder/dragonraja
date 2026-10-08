@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32"><Configuration>Release</Configuration><Platform>Win32</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals"><ProjectGuid>{98198E54-EBD9-4AC4-BD22-3635EB6D8A57}</ProjectGuid><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration"><ConfigurationType>Application</ConfigurationType><UseDebugLibraries>false</UseDebugLibraries><PlatformToolset>v143</PlatformToolset><CharacterSet>MultiByte</CharacterSet></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"><OutDir>$(ProjectDir)Release\</OutDir><IntDir>$(ProjectDir)Release\obj\</IntDir></PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile><WarningLevel>Level3</WarningLevel><PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions><RuntimeLibrary>MultiThreaded</RuntimeLibrary><AdditionalIncludeDirectories>$(ProjectDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+    <Link><SubSystem>Console</SubSystem><AdditionalOptions>/SAFESEH:NO /NODEFAULTLIB:libc.lib /ALTERNATENAME:?Initial@CHSEL_STREAM@@QAEHUHSEL_INITIAL@@@Z=?Initial@CHSEL_STREAM@@QAE_HUHSEL_INITIAL@@@Z /ALTERNATENAME:?Decrypt@CHSEL_STREAM@@QAE_NPADH@Z=?Decrypt@CHSEL_STREAM@@QAE_NPAD_H@Z /ALTERNATENAME:?GetCRCConvertInt@CHSEL_STREAM@@QBEHXZ=?GetCRCConvertInt@CHSEL_STREAM@@QBE_HXZ %(AdditionalOptions)</AdditionalOptions><AdditionalLibraryDirectories>$(ProjectDir)..\..\Library;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories><AdditionalDependencies>HSEL.lib;uxtheme.lib;windowscodecs.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup><ClCompile Include="ItemTableProbe.cpp" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

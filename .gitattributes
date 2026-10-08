@@ -1,0 +1,4 @@
+# Preserve byte-exact legacy encodings and mixed line endings on checkout.
+* -text
+*.ico binary
+*.cur binary

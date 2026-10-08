@@ -1,0 +1,10 @@
+; 4DyuchiNETAsio.def
+; 4DyuchiNETAsio DLL 导出定义
+
+LIBRARY 4DyuchiNETAsio
+
+EXPORTS
+    DllGetClassObject     @1 PRIVATE
+    DllCanUnloadNow       @2 PRIVATE
+    DllRegisterServer     @3 PRIVATE
+    DllUnregisterServer   @4 PRIVATE

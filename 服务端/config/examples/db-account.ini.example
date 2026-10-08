@@ -1,0 +1,14 @@
+; Fragment only. Merge into your own complete DBDemon.ini / MapServer.ini.
+; Never commit your filled-in configuration. Prefer a least-privilege database user.
+[db_account]
+dragon_id=
+dragon_pw=
+total_id=
+total_pw=
+chrlog_id=
+chrlog_pw=
+
+[mysql_conn]
+driver=MySQL ODBC 9.7 ANSI Driver
+server=127.0.0.1
+port=3306

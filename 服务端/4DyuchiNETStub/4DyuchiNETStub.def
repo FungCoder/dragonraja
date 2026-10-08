@@ -1,0 +1,10 @@
+; 4DyuchiNETStub 导出定义文件
+; 用于让 regsvr32 能找到 DllRegisterServer / DllUnregisterServer
+; PRIVATE 防止 DllXxx 被作为导入库符号
+
+LIBRARY 4DyuchiNETStub
+EXPORTS
+    DllGetClassObject     @1
+    DllCanUnloadNow       @2   PRIVATE
+    DllRegisterServer     @3   PRIVATE
+    DllUnregisterServer   @4   PRIVATE
