@@ -22,6 +22,7 @@
 #include "DualManager.h"
 #include "GuildManager.h"
 #include "ArenaManager.h"
+#include "GameplaySafety.h"
 
 const int SIZE_GR_BS = 50; // CSD-030326
 const int SIZE_GR_RS = 100; // CSD-030326
@@ -146,7 +147,7 @@ void RecvItemBuy( int cn, t_client_item_buy *p )
 	int a,b,c;
 	int itempos;
 	
-	if( store_id >= MAX_STORE_LIST ) return; // Error....
+	if (!IsStoreListValid(store_id, MAX_STORE_LIST, storelistmax, MAX_STORE_ITEM_LIST)) return; // Error....
 	if( !itemno ) return;
 
 	for( itempos=0; itempos<storelistmax[store_id]; itempos++)
@@ -237,6 +238,7 @@ void RecvItemSell( int cn, t_client_item_sell *p )
 	int store_id = p->store_id;
 	int pos = p->item_position;
 
+	if (!IsInventoryPositionValid(pos)) return;
 	int a = ( pos & 0x0060 ) >> 5;
 	int b = ( pos & 0x0018 ) >> 3;
 	int c = ( pos & 0x0007 );
@@ -245,8 +247,7 @@ void RecvItemSell( int cn, t_client_item_sell *p )
 	ItemAttr *item = &ch->inv[a][b][c];
 
 	if( !item->item_no ) return;
-	if( store_id > MAX_STORE_LIST) return;
-	if( store_id < 0) return;
+	if (!IsStoreListValid(store_id, MAX_STORE_LIST, storelistmax, MAX_STORE_ITEM_LIST)) return;
 
 	int itempos=0;
 	for( itempos=0; itempos	<	storelistmax[store_id]; itempos++)
@@ -869,8 +870,7 @@ void RecvCharInfoBasic( t_char_info_basic *p, t_connection c[], int cn )
 
 void SendStoreItemList( int cn, int storelistindex, int menu )
 {
-	if( storelistindex < 0 || storelistindex >= MAX_STORE_LIST ||
-		storelistmax[storelistindex] < 0 || storelistmax[storelistindex] > MAX_STORE_ITEM_LIST ) return;
+	if (!IsStoreListValid(storelistindex, MAX_STORE_LIST, storelistmax, MAX_STORE_ITEM_LIST)) return;
 	t_packet p = {};
 	int count = 0;
 	p.h.header.type = CMD_STORE_ITEMLIST;
@@ -1185,12 +1185,15 @@ void RecvLearnItem( k_client_learn_item *i, t_connection c[], int cn )
 
 void RecvItemRepair( t_client_item_sell *p, t_connection c[], int cn )
 {
-	CHARLIST *ch = &c[cn].chrlst;
-	if( !ch ) return;
+	if (!p || !c || cn < DRAGON_CONNECTIONS_START || cn >= DRAGON_MAX_CONNECTIONS) return;
+	CHARLIST *ch = CheckServerId(cn);
+	if (!ch) return;
 //	ch->Money = GetMoneyByItem( ch );
 
 	int store_id = p->store_id;
 	int pos = p->item_position;
+	if (!IsStoreListValid(store_id, MAX_STORE_LIST, storelistmax, MAX_STORE_ITEM_LIST) ||
+		!IsInventoryPositionValid(pos)) return;
 	int x,y,z;
 	int item_no, type;
 	int price;
@@ -1210,7 +1213,7 @@ void RecvItemRepair( t_client_item_sell *p, t_connection c[], int cn )
 		return;
 	}
 
-	storeitemno = MAX_STORE_ITEM_LIST;
+	storeitemno = storelistmax[store_id];
 	for( i = 0 ; i < storeitemno ; i ++)
 	{
 		if( storelist[store_id][i].item_no == item.item_no ) 

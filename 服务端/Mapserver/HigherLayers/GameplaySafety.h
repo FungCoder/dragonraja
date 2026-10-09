@@ -36,9 +36,27 @@ void ClearRemovedNpcSlot(Npc& npc, int& activeCount, ReleaseTile releaseTile)
     if (activeCount > 0) --activeCount;
 }
 
-inline bool IsTradeItemIndexValid(int index, int capacity)
+inline bool IsGameplayIndexValid(int index, int capacity)
 {
     return index >= 0 && index < capacity;
+}
+
+inline bool IsTradeItemIndexValid(int index, int capacity)
+{
+    return IsGameplayIndexValid(index, capacity);
+}
+
+inline bool IsStoreListValid(int index, int capacity, const int* counts,
+    int itemCapacity)
+{
+    return counts && IsGameplayIndexValid(index, capacity) &&
+        counts[index] >= 0 && counts[index] <= itemCapacity;
+}
+
+inline bool IsInventoryPositionValid(int position)
+{
+    return position >= 0 && (position & ~0x7f) == 0 &&
+        ((position & 0x60) >> 5) < 3 && ((position & 0x18) >> 3) < 3;
 }
 
 template<class Row>

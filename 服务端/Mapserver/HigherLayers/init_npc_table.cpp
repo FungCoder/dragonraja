@@ -1,5 +1,6 @@
 ﻿#include "..\stdafx.h"
 #include "DefaultHeader.h"
+#include "GameplaySafety.h"
 #include "..\LowerLayers\MyLog.h"
 
 NPCName_by_Gender	NPC_Name_Ref[Num_Of_NPC_Name];
@@ -301,12 +302,17 @@ int initNPCGenerationTable(void)
 	
 	int nNo = 0;
 
-	while ((retCode = SQLFetch(hStmt)) == SQL_SUCCESS)
+	while (SQL_SUCCEEDED(retCode = SQLFetch(hStmt)))
 	{
 		SQLLEN cbValue;		
-		SQLGetData(hStmt, 1, SQL_C_ULONG, &nNo, 0, &cbValue);   
+		if (!SQL_SUCCEEDED(SQLGetData(hStmt, 1, SQL_C_SLONG, &nNo, sizeof(nNo), &cbValue)) || cbValue == SQL_NULL_DATA)
+		{
+			MyLog(LOG_FATAL, "NPC_Generation_SP: invalid template identifier" );
+			SQLFreeStmt(hStmt, SQL_DROP);
+			return -1;
+		}
 
-		if (nNo > Num_Of_NPC_Generation)
+		if (!IsGameplayIndexValid(nNo, Num_Of_NPC_Generation))
 		{
 			SQLFreeStmt(hStmt, SQL_DROP);
 			return -1;
@@ -314,7 +320,13 @@ int initNPCGenerationTable(void)
 
 		SQLGetData(hStmt, 2, SQL_C_ULONG, &NPC_Gen_Ref[nNo].SprNO,0, &cbValue);
 		//ret = SQLGetData(hStmt,   3, SQL_C_CHAR,		NPC_Gen_Ref[nNo].Han_name, 20, &cbValue); NPC_Gen_Ref[c].Han_name[19] = 0;
-		SQLGetData(hStmt, 4, SQL_C_CHAR, NPC_Gen_Ref[nNo].Name, 30, &cbValue); NPC_Gen_Ref[nNo].Name[31] = 0;
+		if (SQLGetData(hStmt, 4, SQL_C_CHAR, NPC_Gen_Ref[nNo].Name, sizeof(NPC_Gen_Ref[nNo].Name), &cbValue) != SQL_SUCCESS || cbValue == SQL_NULL_DATA)
+        {
+            MyLog(LOG_FATAL, "NPC_Generation_SP: invalid template name");
+            SQLFreeStmt(hStmt, SQL_DROP);
+            return -1;
+        }
+        NPC_Gen_Ref[nNo].Name[sizeof(NPC_Gen_Ref[nNo].Name) - 1] = 0;
 		//SQLGetData(hStmt, 5, SQL_C_ULONG, &NPC_Gen_Ref[nNo].Selectable,0, &cbValue);
 		SQLGetData(hStmt, 6, SQL_C_ULONG, &NPC_Gen_Ref[nNo].Sel_gender,0, &cbValue);
 		//ret = SQLGetData(hStmt,   7, SQL_C_ULONG,		&NPC_Gen_Ref[nNo].Sel_FirstName,0, &cbValue);
@@ -502,6 +514,12 @@ int initNPCGenerationTable(void)
 		SQLGetData(hStmt, 234, SQL_C_ULONG,	&NPC_Gen_Ref[nNo].mutant, 0, &cbValue);
 	}
 
+    if (retCode != SQL_NO_DATA)
+    {
+        MyLog(LOG_FATAL, "NPC_Generation_SP: fetch failed");
+        SQLFreeStmt(hStmt, SQL_DROP);
+        return -1;
+    }
 	SQLFreeStmt(hStmt, SQL_DROP);	
 	MyLog(LOG_NORMAL, "	.NPC Generation Info	%4d data Loaded", nNo);
 	return nNo;

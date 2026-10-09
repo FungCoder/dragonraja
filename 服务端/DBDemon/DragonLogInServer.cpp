@@ -679,6 +679,7 @@ case CMD_CONNECT_INFO :							// 4������ �ϳ��� ĳ����
 	
 	case  CMD_UPDATE_CHAR_DB:	
 		{
+            if (packet->h.header.size != sizeof(t_update_char_db)) { MyLog(LOG_FATAL, "Character save rejected: invalid packet length"); break; }
 			int iRet = RecvUpdateCharDB( &(packet->u.update_char_db)  );					
 			if(iRet != 1)
 			{
@@ -687,6 +688,7 @@ case CMD_CONNECT_INFO :							// 4������ �ϳ��� ĳ����
 		}break;
 	case  CMD_UPDATE_BINARY_DATA0	:	
 		{
+            if (packet->h.header.size != sizeof(t_server_update_binary_data0)) { MyLog(LOG_FATAL, "Character save rejected: invalid packet length"); break; }
 			int iRet = RecvUpdateBinaryData( &(packet->u.server_update_binary_data0)  );	
 			if(iRet != 1)
 			{
@@ -695,6 +697,7 @@ case CMD_CONNECT_INFO :							// 4������ �ϳ��� ĳ����
 		}break;
 	case  CMD_UPDATE_BINARY_DATA1	:	
 		{
+            if (packet->h.header.size != sizeof(t_server_update_binary_data1)) { MyLog(LOG_FATAL, "Character save rejected: invalid packet length"); break; }
 			int iRet = RecvUpdateBinaryData1( &(packet->u.server_update_binary_data1)  );	
 			if(iRet != 1)
 			{
@@ -703,6 +706,7 @@ case CMD_CONNECT_INFO :							// 4������ �ϳ��� ĳ����
 		}break;
 	case  CMD_UPDATE_SCRIPT_DATA	:	
 		{
+            if (packet->h.header.size != sizeof(t_server_update_script_data)) { MyLog(LOG_FATAL, "Character save rejected: invalid packet length"); break; }
 			int iRet = RecvUpdateScriptData( &(packet->u.server_update_script_data)  );	
 			if(iRet != 1)
 			{
@@ -711,6 +715,7 @@ case CMD_CONNECT_INFO :							// 4������ �ϳ��� ĳ����
 		}break;
 	case  CMD_UPDATE_INV_DATA		:	
 		{
+            if (packet->h.header.size != sizeof(t_server_update_inv_data)) { MyLog(LOG_FATAL, "Character save rejected: invalid packet length"); break; }
 			int iRet = RecvUpdateInvData( &(packet->u.server_update_inv_data)  );			
 			if(iRet != 1)
 			{
@@ -719,6 +724,7 @@ case CMD_CONNECT_INFO :							// 4������ �ϳ��� ĳ����
 		}break;
 	case  CMD_UPDATE_ITEM_DATA		:	
 		{
+            if (packet->h.header.size != sizeof(t_server_update_item_data)) { MyLog(LOG_FATAL, "Character save rejected: invalid packet length"); break; }
 			int iRet = RecvUpdateItemData( &(packet->u.server_update_item_data ) );		
 			if(iRet != 1)
 			{
@@ -727,6 +733,7 @@ case CMD_CONNECT_INFO :							// 4������ �ϳ��� ĳ����
 		}break;
 	case  CMD_UPDATE_BANKITEM_DATA	:	
 		{
+            if (packet->h.header.size != sizeof(t_server_update_bankitem_data)) { MyLog(LOG_FATAL, "Character save rejected: invalid packet length"); break; }
 			int iRet = RecvUpdateBankItemData( c, cn, &(packet->u.server_update_bankitem_data));	
 			if(iRet != 1)
 			{
@@ -769,10 +776,15 @@ case CMD_CONNECT_INFO :							// 4������ �ϳ��� ĳ����
 	case CMD_HOW_MANY_IN_MAP :	UpdateTotalMapConnections( packet->u.how_many_in_map.map, packet->u.how_many_in_map.how );
 		break;
 			
-	case CMD_UPDATE_VERY_IMPORTANT_STATUS	:	RecvUpdateCharacterVeryImportantStatus( &(packet->u.update_very_important_status) );
+	case CMD_UPDATE_VERY_IMPORTANT_STATUS:
+        {
+            if (packet->h.header.size != sizeof(t_update_very_important_status)) break;
+            if (RecvUpdateCharacterVeryImportantStatus(&packet->u.update_very_important_status) != 1)
+                MyLog(LOG_FATAL, "Important character save failed");
+        }
 		break;
 			
-	case CMD_UPDATE_VERY_IMPORTANT_TACTICS  :	RecvUpdateTacticSkillExpData( &(packet->u.update_very_important_tactics ));
+	case CMD_UPDATE_VERY_IMPORTANT_TACTICS  : if (packet->h.header.size != sizeof(t_update_very_important_tactics)) break;	if (RecvUpdateTacticSkillExpData(&packet->u.update_very_important_tactics) != 1) MyLog(LOG_FATAL, "Character tactics save failed");
 		break;
 			
 	case CMD_ITEM_DURATION_CHANGE :

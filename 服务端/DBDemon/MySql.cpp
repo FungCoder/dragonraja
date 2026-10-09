@@ -16,6 +16,7 @@
 #include "Citem.h"
 #include "StepMigration.h"
 #include "../Library/Shared/NoticeDatabase.h"
+#include "../Library/Shared/CharacterSave.h"
 
 #define BLOCK_SIZE 6000
 
@@ -1080,8 +1081,8 @@ int CreateChar_SQL(t_connection c[], int cn, t_packet *packet)
 	
 	char normalizedName[NM_LENGTH] = {0};
 	if (!NormalizeCharacterName(packet->u.client_create_char.name, normalizedName) ||
-		CheckName_SQL(normalizedName) == 1 || 
-		SearchStrWord(normalizedName) || 
+		CheckName_SQL(normalizedName) == 1 ||
+		SearchStrWord(normalizedName) ||
 		SearchStrStr(normalizedName, " ") ||
 		IsBlockedId(normalizedName)
 		) // �̸��� ������... // 0208 YGI
@@ -1769,63 +1770,36 @@ struct BinaryUpdateParameter
 };
 
 int ExecuteCharacterBinaryUpdate(const char* query,
-                                 BinaryUpdateParameter* parameters,
-                                 int parameterCount,
-                                 const char* name)
+    BinaryUpdateParameter* parameters, int parameterCount, const char* name)
 {
     if (!query || !parameters || parameterCount <= 0 || parameterCount > 15 ||
-        !name || !name[0] || strnlen_s(name, NM_LENGTH + 1) > NM_LENGTH)
-        return -5;
-
-    HSTMT statement = NULL;
-    if (!SQL_SUCCEEDED(SQLAllocStmt(hDBC, &statement))) return -5;
-    RETCODE result = SQLPrepare(statement, (UCHAR*)query, SQL_NTS);
-    if (!SQL_SUCCEEDED(result))
-    {
-        displaySQLError(statement);
-        SQLFreeStmt(statement, SQL_DROP);
-        return -5;
-    }
-
-    SQLLEN lengths[16] = {0};
+        !IsCharacterSaveTextValid(name, NM_LENGTH)) return -5;
+    CharacterSaveParameter bindings[16] = {};
     for (int index = 0; index < parameterCount; ++index)
     {
-        lengths[index] = parameters[index].size;
-        result = SQLBindParameter(statement, index + 1, SQL_PARAM_INPUT,
-                                  SQL_C_BINARY, SQL_LONGVARBINARY,
-                                  parameters[index].size, 0,
-                                  parameters[index].data,
-                                  parameters[index].size, &lengths[index]);
-        if (!SQL_SUCCEEDED(result))
-        {
-            displaySQLError(statement);
-            SQLFreeStmt(statement, SQL_DROP);
-            return -5;
-        }
+        bindings[index] = {SQL_C_BINARY, SQL_LONGVARBINARY,
+            parameters[index].data, parameters[index].size,
+            static_cast<SQLULEN>(parameters[index].size)};
     }
-
-    SQLLEN nameLength = SQL_NTS;
-    result = SQLBindParameter(statement, parameterCount + 1, SQL_PARAM_INPUT,
-                              SQL_C_CHAR, SQL_VARCHAR, NM_LENGTH, 0,
-                              (SQLPOINTER)name, strlen(name) + 1, &nameLength);
-    if (!SQL_SUCCEEDED(result))
-    {
-        displaySQLError(statement);
-        SQLFreeStmt(statement, SQL_DROP);
-        return -5;
-    }
-
-    result = SQLExecute(statement);
-    SQLLEN affected = 0;
-    if (!SQL_SUCCEEDED(result) ||
-        !SQL_SUCCEEDED(SQLRowCount(statement, &affected)) || affected != 1)
-    {
-        displaySQLError(statement);
-        SQLFreeStmt(statement, SQL_DROP);
-        return -3;
-    }
-    SQLFreeStmt(statement, SQL_DROP);
-    return 1;
+    bindings[parameterCount] = {SQL_C_CHAR, SQL_VARCHAR,
+        const_cast<char*>(name), static_cast<SQLLEN>(strlen(name)), NM_LENGTH};
+    const int result = ExecuteCharacterSave(hDBC, query, bindings, parameterCount + 1);
+    if (result != 1) MyLog(LOG_FATAL, "Character binary save failed (result=%d)", result);
+    return result;
+}
+int ExecuteCharacterNumericUpdate(const char* query, SQLBIGINT* values,
+    size_t numericCount, CharacterSaveParameter* texts, size_t textCount)
+{
+    if (!values || !texts || numericCount == 0 || textCount == 0 ||
+        numericCount + textCount > 96) return -5;
+    CharacterSaveParameter bindings[96] = {};
+    for (size_t index = 0; index < numericCount; ++index)
+        bindings[index] = {SQL_C_SBIGINT, SQL_BIGINT, &values[index], sizeof(values[index]), 19};
+    for (size_t index = 0; index < textCount; ++index)
+        bindings[numericCount + index] = texts[index];
+    const int result = ExecuteCharacterSave(hDBC, query, bindings, numericCount + textCount);
+    if (result != 1) MyLog(LOG_FATAL, "Character status save failed (result=%d)", result);
+    return result;
 }
 } // namespace
 
@@ -2511,56 +2485,17 @@ void updateCharacterVeryImportant_TacticsSkillExp_ToLoginServer( t_connection c[
 	QueuePacket( connections, DB_DEMON, &p, 1 );
 }						
 
-int RecvUpdateCharacterVeryImportantStatus( t_update_very_important_status *tp )
+int RecvUpdateCharacterVeryImportantStatus(t_update_very_important_status* p)
 {
-	SQLRETURN retcode;
-	SQLHSTMT  hstmt;
-	char query[1024];
-	
-	sprintf(query, "UPDATE chr_info SET"
-		" lev= %d, Str= %d, Con= %d, Dex= %d, Wis= %d, "
-		" `Int`= %d, MoveP= %d, `Char`= %d, Endu= %d, Moral= %d, Luck= %d, wsps= %d, "
-		" HpMax = %d, manamax= %d, hungrymax= %d, reserved_point= %d, exp = %u "
-		" where name= '%s'",
-		tp->Level,	
-		
-		tp->Str,	
-		tp->Con,  	
-		tp->Dex,  	
-		tp->Wis,  	
-		tp->Int,  	
-		tp->MoveP,	  
-		tp->Char, 	 
-		tp->Endu, 	 
-		tp->Moral,	  
-		tp->Luck, 	 
-		tp->wsps, 	 
-		
-		tp->HpMax, 
-		tp->ManaMax,
-		tp->HungryMax,
-		
-		tp->reserved_point,
-		
-		tp->Exp,
-		
-		tp->name );
-	
-	SQLAllocStmt(hDBC, &hstmt) ;
-	retcode = SQLExecDirect(hstmt, (UCHAR *)query, SQL_NTS);
-	if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-		displaySQLError(hstmt) ;
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-		SQLFreeStmt(hstmt, SQL_DROP);
-		return -1 ;
-	}	
-	else {
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-		SQLFreeStmt(hstmt, SQL_DROP) ;
-	}	
-	
-	return 1;
-	
+    if (!p || !IsCharacterSaveTextValid(p->name, sizeof(p->name))) return -5;
+    SQLBIGINT values[] = {static_cast<SQLBIGINT>(p->Level), static_cast<SQLBIGINT>(p->Str), static_cast<SQLBIGINT>(p->Con), static_cast<SQLBIGINT>(p->Dex), static_cast<SQLBIGINT>(p->Wis), static_cast<SQLBIGINT>(p->Int), static_cast<SQLBIGINT>(p->MoveP), static_cast<SQLBIGINT>(p->Char), static_cast<SQLBIGINT>(p->Endu), static_cast<SQLBIGINT>(p->Moral), static_cast<SQLBIGINT>(p->Luck), static_cast<SQLBIGINT>(p->wsps), static_cast<SQLBIGINT>(p->HpMax), static_cast<SQLBIGINT>(p->ManaMax), static_cast<SQLBIGINT>(p->HungryMax), static_cast<SQLBIGINT>(p->reserved_point), static_cast<SQLBIGINT>(p->Exp)};
+    CharacterSaveParameter name = {SQL_C_CHAR, SQL_VARCHAR, p->name,
+        static_cast<SQLLEN>(strlen(p->name)), sizeof(p->name)};
+    return ExecuteCharacterNumericUpdate(
+        "UPDATE chr_info SET lev=?, Str=?, Con=?, Dex=?, Wis=?, `Int`=?, MoveP=?, "
+        "`Char`=?, Endu=?, Moral=?, Luck=?, wsps=?, HpMax=?, manamax=?, hungrymax=?, "
+        "reserved_point=?, exp=? WHERE name=?",
+        values, sizeof(values) / sizeof(values[0]), &name, 1);
 }
 
 
@@ -2779,233 +2714,123 @@ int AddCRC( void *pSource, int size, int step )
 // --------------------------------------------
 
 //  Updatae������ LoginServer�� ������.
-int RecvUpdateCharDB( t_update_char_db *p )
+int RecvUpdateCharDB(t_update_char_db* p)
 {
-	// acer5 -------------
-	int c_check = AddCRC( p, sizeof( t_update_char_db)-4, 10 );
-	if( p->check_crc != c_check ) 
-	{
-		MyLog( 0, "error crc check... update 'update_char_db' : %s", p->name );
-		return 0;
-	}
-	
-	SQLRETURN retcode;
-	SQLHSTMT  hstmt;
-	char query[2048];
-	
-	DWORD temp_NWCharacter;
-	memcpy(&temp_NWCharacter,&p->NWCharacter,sizeof(DWORD));
-	ConvertSave(p->aStepInfo); // CSD-TW-030620
-	
-	sprintf(query, "UPDATE chr_info "
-		      "SET lev = %d, spritvalue = %d, social_status = %d, fame = %d, fame_pk = %d, guildname = '%s' "
-			  "WHERE name= '%s'",
-			  p->Level, 
-			  p->nGuildCode,
-			  p->social_status,
-			  p->fame,
-			  //p->fame_pk,	// 010915 LTS	//Fame_PK -> NWCharacter�� ��ü DB���� ������ NWCharacter�� ���� ���ϴ�?		
-			  temp_NWCharacter,	// 010915 LTS
-			  p->aStepInfo,	// CSD-TW-030620
-			  p->name);
-	//> CSD-030324
-	SQLAllocStmt(hDBC, &hstmt) ;
-	retcode = SQLExecDirect(hstmt, (UCHAR *)query, SQL_NTS);
-	if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-		displaySQLError(hstmt) ;
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-		SQLFreeStmt(hstmt, SQL_DROP);
-		return -1 ;
-	}	
-	else {
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-		SQLFreeStmt(hstmt, SQL_DROP) ;
-	}	
-	
-	sprintf(query, "UPDATE chr_info SET"
-		" Str= %d, Con= %d, Dex= %d, Wis= %d, "
-		" `Int`= %d, MoveP= %d, `Char`= %d, Endu= %d, Moral= %d, Luck= %d, wsps= %d, tactics= %d, nation= %d, Money= %d, Hp= %d, HpMax = %d, "
-		" mana= %d, manamax= %d, `condition`= %d, mapname='%s', sight= %d, Age= %d, bAlive= %d "
-		" where name= '%s'"
-		, p->Str, p->Con, p->Dex, p->Wis,
-		p->Int, p->MoveP, p->Char, p->Endu, p->Moral, p->Luck, p->wsps, p->Tactics, p->nation, p->Money, p->Hp, p->HpMax,
-		p->Mana, p->ManaMax, p->Condition, p->MapName, p->Sight, p->Age, p->bAlive
-		, p->name );
-	SQLAllocStmt(hDBC, &hstmt) ;
-	retcode = SQLExecDirect(hstmt, (UCHAR *)query, SQL_NTS);
-	if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-		displaySQLError(hstmt) ;
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-		SQLFreeStmt(hstmt, SQL_DROP);
-		return -1 ;
-	}	
-	else {
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-		SQLFreeStmt(hstmt, SQL_DROP) ;
-	}	
-	
-	sprintf(query, "UPDATE chr_info SET "
-		" hungry= %d, hungrymax= %d, killmon= %d, "
-		" killanimal= %d, killpc = %d, resist_poison= %d, resist_stone= %d, resist_magic= %d, resist_fire= %d, "
-		" resist_ice= %d, resist_elect= %d, x=%d, y=%d, "
-		" acc_equip1= %d, acc_equip2= %d, acc_equip3= %d, acc_equip4= %d "
-		" where name= '%s' "
-		,p->Hungry, p->HungryMax, p->killmon,
-		p->killanimal, p->killpc, 
-		//< CSD-010907
-		p->nPoison, 
-		p->nCurse, 
-		p->nHoly, 
-		p->nFire,
-		p->nIce, 
-		p->nElect, 
-		//> CSD-010907
-		p->X, p->Y,
-		p->accessory[0], p->accessory[1], p->accessory[2], p->accessory[3],
-		p->name );
-	
-	SQLAllocStmt(hDBC, &hstmt);
-	retcode = SQLExecDirect(hstmt, (UCHAR *)query, SQL_NTS);
-	if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO){
-		displaySQLError(hstmt);
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-		SQLFreeStmt(hstmt, SQL_DROP);
-		return -1 ;
-	}
-	else {
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-		SQLFreeStmt(hstmt, SQL_DROP) ;
-	}
-	
-	// 010406 YGI
-	// 010531 KHS  nut1,2,3 �� nk3,4,5 Update�߰�..
-	sprintf(query, "UPDATE chr_info SET"
-		" openhouse = %d, reserved_point= %d,"
-		" bankmoney= %u, LastLoan= %d, exp = %u, "
-		" disease1=%d, disease2=%d, disease3=%d, disease4=%d, disease5=%d, disease6=%d, viewtype= %d, "
-		" win_defeat = %d, LadderScore = %d, nut1 = %d, nut2 = %d, nut3 = %d "
-		" where name= '%s'",
-		
-		p->openhouse,
-		p->reserved_point,
-		
-		p->BankMoney,
-		p->LastLoan,
-		p->Exp,
-		
-		p->disease[0], 
-		p->disease[1], 
-		p->disease[2], 
-		p->disease[3], 
-		p->disease[4], 
-		p->disease[5], 
-		
-		p->viewtype,
-		
-		p->win_defeat,
-		p->LadderScore,
-		
-		
-		p->nk3, p->nk4, p->nk6,
-		
-		
-		p->name );
-	
-	SQLAllocStmt(hDBC, &hstmt) ;
-	retcode = SQLExecDirect(hstmt, (UCHAR *)query, SQL_NTS);
-	if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-		//printf("\n Update Character: Exec Direct Error ; %s", query) ;
-		displaySQLError(hstmt) ;
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-		SQLFreeStmt(hstmt, SQL_DROP);
-		return -1 ;
-	}
-	else {
-		//		SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-		SQLFreeStmt(hstmt, SQL_DROP) ;
-	}
-	
-	// 010504 YGI
-	/*	if( p->LadderScore != 1000 )		// 010410 YGI
-	{
-	UpdateLadderScore( p->LadderScore, p->name );
-	}*/
-	
-	
-	return 1;
+    if (!p || !IsCharacterSaveTextValid(p->name, sizeof(p->name)) ||
+        !IsCharacterSaveTextValid(p->id, sizeof(p->id)) ||
+        !IsCharacterSaveTextValid(p->MapName, sizeof(p->MapName))) return -5;
+    if (p->check_crc != AddCRC(p, sizeof(*p) - 4, 10))
+    {
+        MyLog(LOG_FATAL, "Character save rejected: invalid CRC");
+        return 0;
+    }
+    DWORD nationWar = 0;
+    memcpy(&nationWar, &p->NWCharacter, sizeof(nationWar));
+    char stepInfo[sizeof(p->aStepInfo)] = {};
+    memcpy(stepInfo, p->aStepInfo, sizeof(stepInfo));
+    ConvertSave(stepInfo);
+    SQLBIGINT values[] = {
+        static_cast<SQLBIGINT>(p->Level),
+        static_cast<SQLBIGINT>(p->nGuildCode),
+        static_cast<SQLBIGINT>(p->social_status),
+        static_cast<SQLBIGINT>(p->fame),
+        static_cast<SQLBIGINT>(p->Str),
+        static_cast<SQLBIGINT>(p->Con),
+        static_cast<SQLBIGINT>(p->Dex),
+        static_cast<SQLBIGINT>(p->Wis),
+        static_cast<SQLBIGINT>(p->Int),
+        static_cast<SQLBIGINT>(p->MoveP),
+        static_cast<SQLBIGINT>(p->Char),
+        static_cast<SQLBIGINT>(p->Endu),
+        static_cast<SQLBIGINT>(p->Moral),
+        static_cast<SQLBIGINT>(p->Luck),
+        static_cast<SQLBIGINT>(p->wsps),
+        static_cast<SQLBIGINT>(p->Tactics),
+        CharacterSaveSignedDword(p->nation),
+        static_cast<SQLBIGINT>(p->Money),
+        static_cast<SQLBIGINT>(p->Hp),
+        static_cast<SQLBIGINT>(p->HpMax),
+        static_cast<SQLBIGINT>(p->Mana),
+        static_cast<SQLBIGINT>(p->ManaMax),
+        static_cast<SQLBIGINT>(p->Condition),
+        static_cast<SQLBIGINT>(p->Sight),
+        static_cast<SQLBIGINT>(p->Age),
+        static_cast<SQLBIGINT>(p->bAlive),
+        static_cast<SQLBIGINT>(p->Hungry),
+        static_cast<SQLBIGINT>(p->HungryMax),
+        CharacterSaveSignedDword(p->killmon),
+        CharacterSaveSignedDword(p->killanimal),
+        CharacterSaveSignedDword(p->killpc),
+        static_cast<SQLBIGINT>(p->nPoison),
+        static_cast<SQLBIGINT>(p->nCurse),
+        static_cast<SQLBIGINT>(p->nHoly),
+        static_cast<SQLBIGINT>(p->nFire),
+        static_cast<SQLBIGINT>(p->nIce),
+        static_cast<SQLBIGINT>(p->nElect),
+        static_cast<SQLBIGINT>(p->X),
+        static_cast<SQLBIGINT>(p->Y),
+        static_cast<SQLBIGINT>(p->accessory[0]),
+        static_cast<SQLBIGINT>(p->accessory[1]),
+        static_cast<SQLBIGINT>(p->accessory[2]),
+        static_cast<SQLBIGINT>(p->accessory[3]),
+        static_cast<SQLBIGINT>(p->openhouse),
+        static_cast<SQLBIGINT>(p->reserved_point),
+        static_cast<SQLBIGINT>(p->BankMoney),
+        CharacterSaveSignedDword(p->LastLoan),
+        static_cast<SQLBIGINT>(p->Exp),
+        static_cast<SQLBIGINT>(p->disease[0]),
+        static_cast<SQLBIGINT>(p->disease[1]),
+        static_cast<SQLBIGINT>(p->disease[2]),
+        static_cast<SQLBIGINT>(p->disease[3]),
+        static_cast<SQLBIGINT>(p->disease[4]),
+        static_cast<SQLBIGINT>(p->disease[5]),
+        static_cast<SQLBIGINT>(p->viewtype),
+        CharacterSaveSignedDword(p->win_defeat),
+        CharacterSaveSignedDword(p->LadderScore),
+        static_cast<SQLBIGINT>(p->nk3),
+        static_cast<SQLBIGINT>(p->nk4),
+        static_cast<SQLBIGINT>(p->nk6),
+        CharacterSaveSignedDword(nationWar)
+    };
+    const size_t numericCount = sizeof(values) / sizeof(values[0]);
+    CharacterSaveParameter bindings[4] = {};
+    bindings[0] = {SQL_C_CHAR, SQL_VARCHAR, stepInfo,
+        static_cast<SQLLEN>(strlen(stepInfo)), sizeof(stepInfo)};
+    bindings[1] = {SQL_C_CHAR, SQL_VARCHAR, p->MapName,
+        static_cast<SQLLEN>(strlen(p->MapName)), sizeof(p->MapName)};
+    bindings[2] = {SQL_C_CHAR, SQL_VARCHAR, p->name,
+        static_cast<SQLLEN>(strlen(p->name)), sizeof(p->name)};
+    bindings[3] = {SQL_C_CHAR, SQL_VARCHAR, p->id,
+        static_cast<SQLLEN>(strlen(p->id)), sizeof(p->id)};
+    const char* query =
+        "UPDATE chr_info SET `lev`=?, `spritvalue`=?, `social_status`=?, `fame`=?, `Str`=?, `Con`=?, "
+        "`Dex`=?, `Wis`=?, `Int`=?, `MoveP`=?, `Char`=?, `Endu`=?, "
+        "`Moral`=?, `Luck`=?, `wsps`=?, `tactics`=?, `nation`=?, `Money`=?, "
+        "`Hp`=?, `HpMax`=?, `mana`=?, `manamax`=?, `condition`=?, `sight`=?, "
+        "`Age`=?, `bAlive`=?, `hungry`=?, `hungrymax`=?, `killmon`=?, `killanimal`=?, "
+        "`killpc`=?, `resist_poison`=?, `resist_stone`=?, `resist_magic`=?, `resist_fire`=?, `resist_ice`=?, "
+        "`resist_elect`=?, `x`=?, `y`=?, `acc_equip1`=?, `acc_equip2`=?, `acc_equip3`=?, "
+        "`acc_equip4`=?, `openhouse`=?, `reserved_point`=?, `bankmoney`=?, `LastLoan`=?, `exp`=?, "
+        "`disease1`=?, `disease2`=?, `disease3`=?, `disease4`=?, `disease5`=?, `disease6`=?, "
+        "`viewtype`=?, `win_defeat`=?, `LadderScore`=?, `nut1`=?, `nut2`=?, `nut3`=?, "
+        "fame_pk=?, guildname=?, mapname=? WHERE name=? AND login_id=?";
+    const int result = ExecuteCharacterNumericUpdate(query, values, numericCount, bindings, 4);
+    return result;
 }	
 
 
 
 
 
-int RecvUpdateTacticSkillExpData( t_update_very_important_tactics *p )
-{													
-	//-----------------						
-	SQLLEN  cbdata = 200, cbvalue = SQL_DATA_AT_EXEC ;						
-	SQLLEN	cbtacskillexplen;												
-	SQLRETURN	retcode;									
-	SQLHSTMT	hstmt;											
-	SQLPOINTER	pParamData;								
-	int			n=0;											
-	char		aaa=20;										
-	char		query[256]={0,};										
-	
-	sprintf(query, "UPDATE chr_info SET tac_skillEXP=? WHERE name='%s'", p->name ) ;
-	
-	//printf("\nSQL: %s", query) ;
-	SQLAllocStmt(hDBC, &hstmt);
-	
-	retcode = SQLPrepare(hstmt, (UCHAR *)query, SQL_NTS);
-	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
-		
-		retcode= SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_TAC_SKILL_EXP,	0, p->tac_skillEXP,0, &cbtacskillexplen); 
-		
-		if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)
-		{			
-			SQLFreeStmt(hstmt, SQL_DROP);
-			//printf("\nBinding FAIL!!!") ;
-			return -5 ;							
-		}			
-		
-		cbtacskillexplen= SQL_LEN_DATA_AT_EXEC(0);
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		while(retcode == SQL_NEED_DATA) 
-		{      
-			retcode = SQLParamData(hstmt, &pParamData) ;
-			if(retcode == SQL_NEED_DATA) 
-			{
-				if(pParamData == p->tac_skillEXP)	SQLPutData(hstmt, p->tac_skillEXP, SIZE_OF_TAC_SKILL_EXP );
-			}
-			else break ;
-		}
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		if(retcode == SQL_NEED_DATA)
-		{
-			retcode= SQLCancel(hstmt) ;
-			//			retcode= SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-			retcode= SQLFreeStmt(hstmt, SQL_DROP );
-			
-			if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-				//printf("\n Transact commit Error") ;
-			}
-			//printf("\nTransact & free") ;
-			return(1); // succeed
-		}
-		else
-		{
-			displaySQLError(hstmt) ;
-			//			SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-			SQLFreeStmt(hstmt, SQL_DROP);
-			return(-3); 
-		}
-	}
-	SQLFreeStmt(hstmt, SQL_DROP);
-	return 1;
+int RecvUpdateTacticSkillExpData(t_update_very_important_tactics* p)
+{
+    if (!p || !IsCharacterSaveTextValid(p->name, sizeof(p->name))) return -5;
+    BinaryUpdateParameter parameters[] = {
+        {reinterpret_cast<UCHAR*>(p->tac_skillEXP), SIZE_OF_TAC_SKILL_EXP},
+    };
+    return ExecuteCharacterBinaryUpdate(
+        "UPDATE chr_info SET tac_skillEXP=? WHERE name=?",
+        parameters, sizeof(parameters) / sizeof(parameters[0]), p->name);
 }
 
 
@@ -3019,186 +2844,48 @@ int RecvUpdateTacticSkillExpData( t_update_very_important_tactics *p )
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int RecvUpdateBinaryData( t_server_update_binary_data0 *p )
-{	
-	// acer5 -------------
-	int c_check = AddCRC( p, sizeof( t_server_update_binary_data0 )-4, 10 );
-	if( p->check_crc != c_check ) 
-	{
-		MyLog( 0, "error crc check... update 't_server_update_binary_data0' : %s", p->name  );
-		return 0;
-	}
-	// -------------------
-	SQLLEN  cbdata = 200, cbvalue = SQL_DATA_AT_EXEC ;
-	SQLLEN	cbwslen, cbpslen, cbskilllen, cbskillexplen,cbtacskillexplen;
-	SQLRETURN	retcode;
-	SQLHSTMT	hstmt;
-	SQLPOINTER	pParamData;
-	int			n=0;
-	char		aaa=20;
-	char		query[256]={0,};
-	
-	sprintf(query, "UPDATE chr_info SET ws=?, ps=?,skill=?, skill_exp=?, tac_skillEXP=? WHERE name='%s'", p->name) ;
-	
-	//printf("\nSQL: %s", query) ;
-	SQLAllocStmt(hDBC, &hstmt);
-	retcode = SQLPrepare(hstmt, (UCHAR *)query, SQL_NTS);
-	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
-		
-		retcode= SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_WS,			0, p->Ws,			0, &cbwslen); 
-		retcode= SQLBindParameter(hstmt, 2, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_PS,			0, p->Ps,			0, &cbpslen); 
-		retcode= SQLBindParameter(hstmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_SKILL,			0, p->Skill,		0, &cbskilllen); 
-		retcode= SQLBindParameter(hstmt, 4, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_SKILL_EXP,		0, p->skillexp,	0, &cbskillexplen); 
-		retcode= SQLBindParameter(hstmt, 5, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_TAC_SKILL_EXP,	0, p->tac_skillEXP,0, &cbtacskillexplen); 
-		
-		if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)
-		{
-			SQLFreeStmt(hstmt, SQL_DROP);
-			//printf("\nBinding FAIL!!!") ;
-			return -5 ;
-		}
-		
-		cbpslen			= SQL_LEN_DATA_AT_EXEC(0);
-		cbwslen			= SQL_LEN_DATA_AT_EXEC(0);
-		cbskilllen		= SQL_LEN_DATA_AT_EXEC(0);
-		cbskillexplen	= SQL_LEN_DATA_AT_EXEC(0);
-		cbtacskillexplen= SQL_LEN_DATA_AT_EXEC(0);
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		while(retcode == SQL_NEED_DATA) 
-		{      
-			retcode = SQLParamData(hstmt, &pParamData) ;
-			if(retcode == SQL_NEED_DATA) 
-			{
-				if(pParamData == p->Ws) 				SQLPutData(hstmt, p->Ws, SIZE_OF_WS);
-				else if(pParamData == p->Ps) 			SQLPutData(hstmt, p->Ps, SIZE_OF_PS);      
-				else if(pParamData == p->Skill) 		SQLPutData(hstmt, p->Skill, SIZE_OF_SKILL);      
-				else if(pParamData == p->skillexp) 	SQLPutData(hstmt, p->skillexp, SIZE_OF_SKILL_EXP );      
-				else if(pParamData == p->tac_skillEXP)	SQLPutData(hstmt, p->tac_skillEXP, SIZE_OF_TAC_SKILL_EXP );      
-				
-			}
-			else break ;
-		}
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		if(retcode == SQL_NEED_DATA)
-		{
-			retcode= SQLCancel(hstmt) ;
-			//			retcode= SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-			retcode= SQLFreeStmt(hstmt, SQL_DROP );
-			
-			if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-				//printf("\n Transact commit Error") ;
-			}
-			//printf("\nTransact & free") ;
-			return(1); // succeed
-		}
-		else
-		{
-			displaySQLError(hstmt) ;
-			//			SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-			SQLFreeStmt(hstmt, SQL_DROP);
-			return(-3); 
-		}
-	}
-	SQLFreeStmt(hstmt, SQL_DROP);
-	return 1;
+int RecvUpdateBinaryData(t_server_update_binary_data0* p)
+{
+    if (!p || !IsCharacterSaveTextValid(p->name, sizeof(p->name))) return -5;
+    if (p->check_crc != AddCRC(p, sizeof(*p) - 4, 10))
+    {
+        MyLog(LOG_FATAL, "Character binary save rejected: invalid CRC");
+        return 0;
+    }
+    BinaryUpdateParameter parameters[] = {
+        {reinterpret_cast<UCHAR*>(p->Ws), SIZE_OF_WS},
+        {reinterpret_cast<UCHAR*>(p->Ps), SIZE_OF_PS},
+        {reinterpret_cast<UCHAR*>(p->Skill), SIZE_OF_SKILL},
+        {reinterpret_cast<UCHAR*>(p->skillexp), SIZE_OF_SKILL_EXP},
+        {reinterpret_cast<UCHAR*>(p->tac_skillEXP), SIZE_OF_TAC_SKILL_EXP},
+    };
+    return ExecuteCharacterBinaryUpdate(
+        "UPDATE chr_info SET ws=?, ps=?, skill=?, skill_exp=?, tac_skillEXP=? WHERE name=?",
+        parameters, sizeof(parameters) / sizeof(parameters[0]), p->name);
 }
 
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int RecvUpdateBinaryData1( t_server_update_binary_data1 *p )
+int RecvUpdateBinaryData1(t_server_update_binary_data1* p)
 {
-	// acer5 -------------
-	int c_check = AddCRC( p, sizeof( t_server_update_binary_data1 )-4, 10 );
-	if( p->check_crc != c_check ) 
-	{
-		MyLog( 0, "error crc check... update 't_server_update_binary_data1 ' : %s", p->name );
-		return 0;
-	}
-	// -------------------
-	
-	SQLLEN  cbdata = 200, cbvalue = SQL_DATA_AT_EXEC ;
-	SQLLEN	cbquick, cbequip, cbparty, cbrelation, cbemployment;
-	SQLRETURN	retcode;
-	SQLHSTMT	hstmt;
-	SQLPOINTER	pParamData;
-	int			n=0;
-	char		aaa=20;
-	char		query[256]={0,};
-	
-	sprintf(query, "UPDATE chr_info SET equip=?, quick=?, party=?, relation=?, employment=?  WHERE name='%s'", p->name) ;
-	
-	//printf("\nSQL: %s", query) ;
-	SQLAllocStmt(hDBC, &hstmt);
-	retcode = SQLPrepare(hstmt, (UCHAR *)query, SQL_NTS);
-	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
-		
-		retcode= SQLBindParameter(hstmt,  1, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_EQUIP,		0, p->equip,		0, &cbequip); 
-		retcode= SQLBindParameter(hstmt,  2, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_QUICK,		0, p->quick,		0, &cbquick); 
-		retcode= SQLBindParameter(hstmt,  3, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_PARTY,		0, p->party,		0, &cbparty     ); 
-		retcode= SQLBindParameter(hstmt,  4, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_RELATION,		0, p->relation,		0, &cbrelation  ); 
-		retcode= SQLBindParameter(hstmt,  5, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_EMPLOYMENT,	0, p->employment,	0, &cbemployment); 
-		
-		
-		if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)
-		{
-			SQLFreeStmt(hstmt, SQL_DROP);
-			printf("\nBinding FAIL!!!") ;
-			return -5 ;
-		}
-		
-		cbequip			= SQL_LEN_DATA_AT_EXEC(0);
-		cbquick			= SQL_LEN_DATA_AT_EXEC(0);
-		cbparty			= SQL_LEN_DATA_AT_EXEC(0);
-		cbrelation		= SQL_LEN_DATA_AT_EXEC(0);
-		cbemployment	= SQL_LEN_DATA_AT_EXEC(0);
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		while(retcode == SQL_NEED_DATA) 
-		{      
-			retcode = SQLParamData(hstmt, &pParamData) ;
-			if(retcode == SQL_NEED_DATA) 
-			{
-				if(pParamData == p->equip) 		SQLPutData(hstmt, p->equip,			SIZE_OF_EQUIP);
-				else if(pParamData == p->quick) 		SQLPutData(hstmt, p->quick,			SIZE_OF_QUICK );
-				else if(pParamData == p->party ) 		SQLPutData(hstmt, p->party,			SIZE_OF_PARTY );
-				else if(pParamData == p->relation) 	SQLPutData(hstmt, p->relation,		SIZE_OF_RELATION);
-				else if(pParamData == p->employment ) 	SQLPutData(hstmt, p->employment,	SIZE_OF_EMPLOYMENT );
-			}
-			else break ;
-		}
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		if(retcode == SQL_NEED_DATA)
-		{
-			retcode= SQLCancel(hstmt) ;
-			//			retcode= SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-			retcode= SQLFreeStmt(hstmt, SQL_DROP );
-			
-			if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-				printf("\n Transact commit Error") ;
-			}
-			//printf("\nTransact & free") ;
-			return(1); // succeed
-		}
-		else
-		{
-			displaySQLError(hstmt) ;
-			//			SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-			SQLFreeStmt(hstmt, SQL_DROP);
-			return(-3); 
-		}
-	}
-	
-	SQLFreeStmt(hstmt, SQL_DROP);
-	return 1;
+    if (!p || !IsCharacterSaveTextValid(p->name, sizeof(p->name))) return -5;
+    if (p->check_crc != AddCRC(p, sizeof(*p) - 4, 10))
+    {
+        MyLog(LOG_FATAL, "Character binary save rejected: invalid CRC");
+        return 0;
+    }
+    BinaryUpdateParameter parameters[] = {
+        {reinterpret_cast<UCHAR*>(p->equip), SIZE_OF_EQUIP},
+        {reinterpret_cast<UCHAR*>(p->quick), SIZE_OF_QUICK},
+        {reinterpret_cast<UCHAR*>(p->party), SIZE_OF_PARTY},
+        {reinterpret_cast<UCHAR*>(p->relation), SIZE_OF_RELATION},
+        {reinterpret_cast<UCHAR*>(p->employment), SIZE_OF_EMPLOYMENT},
+    };
+    return ExecuteCharacterBinaryUpdate(
+        "UPDATE chr_info SET equip=?, quick=?, party=?, relation=?, employment=? WHERE name=?",
+        parameters, sizeof(parameters) / sizeof(parameters[0]), p->name);
 }
 
 
@@ -3207,320 +2894,75 @@ int RecvUpdateBinaryData1( t_server_update_binary_data1 *p )
 
 
 
-int  RecvUpdateScriptData( t_server_update_script_data *p )
+int RecvUpdateScriptData(t_server_update_script_data* p)
 {
-	// acer5 -------------
-	int c_check = AddCRC( p, sizeof( t_server_update_script_data )-4, 10 );
-	if( p->check_crc != c_check ) 
-	{
-		MyLog( 0, "error crc check... update 't_server_update_script_data ' : %s", p->name  );
-		return 0;
-	}
-	// -------------------
-	
-	SQLLEN  cbdata = 200, cbvalue = SQL_DATA_AT_EXEC ;
-	SQLLEN	cbscriptvarlen;
-	SQLRETURN	retcode;
-	SQLHSTMT	hstmt;
-	SQLPOINTER	pParamData;
-	int			n=0;
-	char		aaa=20;
-	char		query[256]={0,};
-	
-	sprintf(query, "UPDATE chr_info SET script_var=? WHERE name='%s'", p->name) ;
-	
-	//printf("\nSQL: %s", query) ;
-	SQLAllocStmt(hDBC, &hstmt);
-	retcode = SQLPrepare(hstmt, (UCHAR *)query, SQL_NTS);
-	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
-		
-		retcode= SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_SCRIPT_VAR,	0, p->script_var,	0, &cbscriptvarlen); 
-		
-		if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)
-		{
-			SQLFreeStmt(hstmt, SQL_DROP);
-			//printf("\nBinding FAIL!!!") ;
-			return -5 ;
-		}
-		
-		cbscriptvarlen	= SQL_LEN_DATA_AT_EXEC(0);
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		while(retcode == SQL_NEED_DATA) 
-		{      
-			retcode = SQLParamData(hstmt, &pParamData) ;
-			if(retcode == SQL_NEED_DATA) 
-			{
-				if(pParamData == p->script_var ) 	SQLPutData(hstmt, p->script_var, SIZE_OF_SCRIPT_VAR );
-			}
-			else break ;
-		}
-		
-		cbscriptvarlen	= SQL_LEN_DATA_AT_EXEC(0);
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		if(retcode == SQL_NEED_DATA)
-		{
-			retcode= SQLCancel(hstmt) ;
-			//			retcode= SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-			retcode= SQLFreeStmt(hstmt, SQL_DROP );
-			
-			if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-				//printf("\n Transact commit Error") ;
-			}
-			//printf("\nTransact & free") ;
-			return(1); // succeed
-		}
-		else
-		{
-			displaySQLError(hstmt) ;
-			//			SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-			SQLFreeStmt(hstmt, SQL_DROP);
-			return(-3); 
-		}
-	}
-	
-	SQLFreeStmt(hstmt, SQL_DROP);
-	return 1;
+    if (!p || !IsCharacterSaveTextValid(p->name, sizeof(p->name))) return -5;
+    if (p->check_crc != AddCRC(p, sizeof(*p) - 4, 10))
+    {
+        MyLog(LOG_FATAL, "Character binary save rejected: invalid CRC");
+        return 0;
+    }
+    BinaryUpdateParameter parameters[] = {
+        {reinterpret_cast<UCHAR*>(p->script_var), SIZE_OF_SCRIPT_VAR},
+    };
+    return ExecuteCharacterBinaryUpdate(
+        "UPDATE chr_info SET script_var=? WHERE name=?",
+        parameters, sizeof(parameters) / sizeof(parameters[0]), p->name);
 }
 
 
 
-int RecvUpdateInvData( t_server_update_inv_data *p )
+int RecvUpdateInvData(t_server_update_inv_data* p)
 {
-	// acer5 -------------
-	int c_check = AddCRC( p, sizeof( t_server_update_inv_data )-4, 10 );
-	if( p->check_crc != c_check ) 
-	{
-		MyLog( 0, "error crc check... update 't_server_update_inv_data' : %s", p->name );
-		return 0;
-	}
-	// -------------------
-	
-	SQLLEN  cbdata = 200, cbvalue = SQL_DATA_AT_EXEC ;
-	SQLLEN	cbinvlen;
-	SQLRETURN	retcode;
-	SQLHSTMT	hstmt;
-	SQLPOINTER	pParamData;
-	int			n=0;
-	char		aaa=20;
-	char		query[256]={0,};
-	
-	sprintf(query, "UPDATE chr_info SET inventory=?  WHERE name='%s'", p->name) ;
-	
-	//printf("\nSQL: %s", query) ;
-	SQLAllocStmt(hDBC, &hstmt);
-	retcode = SQLPrepare(hstmt, (UCHAR *)query, SQL_NTS);
-	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
-		
-		retcode= SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_INV,			0, p->inv,			0, &cbinvlen); 
-		
-		
-		if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)
-		{
-			SQLFreeStmt(hstmt, SQL_DROP);
-			printf("\nBinding FAIL!!!") ;
-			return -5 ;
-		}
-		
-		cbinvlen		= SQL_LEN_DATA_AT_EXEC(0);
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		while(retcode == SQL_NEED_DATA) 
-		{      
-			retcode = SQLParamData(hstmt, &pParamData) ;
-			if(retcode == SQL_NEED_DATA) 
-			{
-				if(pParamData == p->inv) 			SQLPutData(hstmt, p->inv, SIZE_OF_INV);
-			}
-			else break ;
-		}
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		if(retcode == SQL_NEED_DATA)
-		{
-			retcode= SQLCancel(hstmt) ;
-			//			retcode= SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-			retcode= SQLFreeStmt(hstmt, SQL_DROP );
-			
-			
-			if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-				printf("\n Transact commit Error") ;
-			}
-			//printf("\nTransact & free") ;
-			return(1); // succeed
-		}
-		else
-		{
-			displaySQLError(hstmt) ;
-			//			SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-			SQLFreeStmt(hstmt, SQL_DROP);
-			return(-3); 
-		}
-	}
-	SQLFreeStmt(hstmt, SQL_DROP);
-	return 1;
+    if (!p || !IsCharacterSaveTextValid(p->name, sizeof(p->name))) return -5;
+    if (p->check_crc != AddCRC(p, sizeof(*p) - 4, 10))
+    {
+        MyLog(LOG_FATAL, "Character binary save rejected: invalid CRC");
+        return 0;
+    }
+    BinaryUpdateParameter parameters[] = {
+        {reinterpret_cast<UCHAR*>(p->inv), SIZE_OF_INV},
+    };
+    return ExecuteCharacterBinaryUpdate(
+        "UPDATE chr_info SET inventory=? WHERE name=?",
+        parameters, sizeof(parameters) / sizeof(parameters[0]), p->name);
 }
 
 
-int RecvUpdateItemData( t_server_update_item_data *p )
+int RecvUpdateItemData(t_server_update_item_data* p)
 {
-	// acer5 -------------
-	int c_check = AddCRC( p, sizeof( t_server_update_item_data )-4, 10 );
-	if( p->check_crc != c_check ) 
-	{
-		MyLog( 0, "error crc check... update 't_server_update_item_data' : %s", p->name  );
-		return 0;
-	}
-	// -------------------
-	
-	SQLLEN  cbdata = 200, cbvalue = SQL_DATA_AT_EXEC ;
-	SQLLEN	cbitemindex;
-	SQLRETURN	retcode;
-	SQLHSTMT	hstmt;
-	SQLPOINTER	pParamData;
-	int			n=0;
-	char		aaa=20;
-	char		query[256]={0,};
-	
-	sprintf(query, "UPDATE chr_info SET itemindex=?  WHERE name='%s'", p->name) ;
-	
-	//printf("\nSQL: %s", query) ;
-	SQLAllocStmt(hDBC, &hstmt);
-	retcode = SQLPrepare(hstmt, (UCHAR *)query, SQL_NTS);
-	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
-		
-		retcode= SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_ITEMINDEX,	0, p->Item,	0, &cbitemindex); 
-		
-		
-		if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)
-		{
-			SQLFreeStmt(hstmt, SQL_DROP);
-			printf("\nBinding FAIL!!!") ;
-			return -5 ;
-		}
-		
-		cbitemindex		= SQL_LEN_DATA_AT_EXEC(0);
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		while(retcode == SQL_NEED_DATA) 
-		{      
-			retcode = SQLParamData(hstmt, &pParamData) ;
-			if(retcode == SQL_NEED_DATA) 
-			{
-				if(pParamData == p->Item ) 	SQLPutData(hstmt, p->Item,	SIZE_OF_ITEMINDEX );
-				
-			}
-			else break ;
-		}
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		if(retcode == SQL_NEED_DATA)
-		{
-			retcode= SQLCancel(hstmt) ;
-			//			retcode= SQLTransact(SQL_NULL_HENV, hDBC, SQL_COMMIT);
-			retcode= SQLFreeStmt(hstmt, SQL_DROP );
-			
-			if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-				printf("\n Transact commit Error") ;
-			}
-			//printf("\nTransact & free") ;
-			return(1); // succeed
-		}
-		else
-		{
-			displaySQLError(hstmt) ;
-			//			SQLTransact(SQL_NULL_HENV, hDBC, SQL_ROLLBACK);
-			SQLFreeStmt(hstmt, SQL_DROP);
-			return(-3); 
-		}
-	}
-	SQLFreeStmt(hstmt, SQL_DROP);
-	return 1;
+    if (!p || !IsCharacterSaveTextValid(p->name, sizeof(p->name))) return -5;
+    if (p->check_crc != AddCRC(p, sizeof(*p) - 4, 10))
+    {
+        MyLog(LOG_FATAL, "Character binary save rejected: invalid CRC");
+        return 0;
+    }
+    BinaryUpdateParameter parameters[] = {
+        {reinterpret_cast<UCHAR*>(p->Item), SIZE_OF_ITEMINDEX},
+    };
+    return ExecuteCharacterBinaryUpdate(
+        "UPDATE chr_info SET itemindex=? WHERE name=?",
+        parameters, sizeof(parameters) / sizeof(parameters[0]), p->name);
 }	
 
 
 
 
 
-int RecvUpdateBankItemData( t_connection c[], int cn, t_server_update_bankitem_data  *p  )
-{		
-	// acer5 -------------
-	int c_check = AddCRC( p, sizeof( t_server_update_bankitem_data )-4, 10 );
-	if( p->check_crc != c_check ) 
-	{
-		MyLog( 0, "error crc check... update 't_server_update_bankitem_data' : %s", p->name );
-		return 0;
-	}
-	// -------------------
-	
-	SQLLEN  cbdata = 200, cbvalue = SQL_DATA_AT_EXEC ;
-	SQLLEN	cbbankitemlen;
-	SQLRETURN	retcode;
-	SQLHSTMT	hstmt;
-	SQLPOINTER	pParamData;
-	int			n=0;
-	char		aaa=20;
-	char		query[256]={0,};
-	
-	sprintf(query, "UPDATE chr_info2 SET bankitem=? WHERE name='%s'", p->name) ;
-	
-	SQLAllocStmt(hDBC, &hstmt);
-	retcode = SQLPrepare(hstmt, (UCHAR *)query, SQL_NTS);
-	if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) 
-	{	
-		retcode= SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT, SQL_C_BINARY,SQL_LONGVARBINARY, SIZE_OF_BANKITEM,			0, p->bankitem,			0, &cbbankitemlen );
-		
-		if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO)
-		{
-			SQLFreeStmt(hstmt, SQL_DROP);
-			printf("\nBinding FAIL!!!") ;
-			return -5 ;
-		}
-		
-		cbbankitemlen	= SQL_LEN_DATA_AT_EXEC(0);
-		
-		retcode = SQLExecute(hstmt) ;
-		while(retcode == SQL_NEED_DATA) 
-		{      
-			retcode = SQLParamData(hstmt, &pParamData) ;
-			if(retcode == SQL_NEED_DATA) 
-			{
-				if(pParamData == p->bankitem ) 	
-					int ret = SQLPutData(hstmt, p->bankitem , SIZE_OF_BANKITEM );
-			}
-			else break ;
-		}
-		
-		retcode = SQLExecute(hstmt) ;
-		
-		if(retcode == SQL_NEED_DATA)
-		{
-			retcode= SQLCancel(hstmt) ;
-			retcode= SQLFreeStmt(hstmt, SQL_DROP );
-			
-			
-			if(retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
-				printf("\n Transact commit Error") ;
-			}
-			
-			return(1); // succeed
-		}	
-		else
-		{	
-			SQLFreeStmt(hstmt, SQL_DROP);
-			return(-3); 
-		}
-	}
-	
-	SQLFreeStmt(hstmt, SQL_DROP);
-	return 0;
+int RecvUpdateBankItemData(t_connection c[], int cn, t_server_update_bankitem_data* p)
+{
+    if (!p || !IsCharacterSaveTextValid(p->name, sizeof(p->name))) return -5;
+    if (p->check_crc != AddCRC(p, sizeof(*p) - 4, 10))
+    {
+        MyLog(LOG_FATAL, "Character binary save rejected: invalid CRC");
+        return 0;
+    }
+    BinaryUpdateParameter parameters[] = {
+        {reinterpret_cast<UCHAR*>(p->bankitem), SIZE_OF_BANKITEM},
+    };
+    return ExecuteCharacterBinaryUpdate(
+        "UPDATE chr_info2 SET bankitem=? WHERE name=?",
+        parameters, sizeof(parameters) / sizeof(parameters[0]), p->name);
 }
 
 

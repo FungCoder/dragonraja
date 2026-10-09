@@ -50,7 +50,7 @@ int CheckHandleByKein( t_packet *p, t_connection c[], int cn )
 			break;
 		}
 	case CMD_LEARN_ITEM					:	RecvLearnItem( &p->u.kein.client_learn_item, c, cn ); break;
-	case CMD_ITEMREPAIR_REQ				:	RecvItemRepair( &p->u.client_item_sell, c, cn ); break;
+	case CMD_ITEMREPAIR_REQ				: if (p->h.header.size != sizeof(t_client_item_sell)) break; RecvItemRepair( &p->u.client_item_sell, c, cn ); break;
 		
 	case CMD_CHAR_INFO_TAC_SKILL_EXP	:	SendCharInfotac_skillEXP( c, cn ); break;
 	case CMD_OPEN_STATUS_REQ			:	SendStatusOpen( c, cn ); break;

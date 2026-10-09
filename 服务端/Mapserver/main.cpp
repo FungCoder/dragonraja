@@ -396,7 +396,7 @@ int InitDRMapServerDatas(void)
 	*/
 	//> CSD-031229
 	InitNPCList();
-	if(initNPCTable() < 0) { Error ("  NPC Table Loading Failed.\n");	} 
+	if(initNPCTable() < 0) { Error ("  NPC Table Loading Failed.\n"); return 0; }
 	else
 	{
 		MyLog( LOG_NORMAL, "'NPC_NamebyGender' Table initializing  ..........  OK !");

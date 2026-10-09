@@ -1423,11 +1423,13 @@ int HandleCommand( int cn, t_packet *packet)
 			break;
 		case CMD_ITEM_BUY_REQ:
 			{
+                if (packet->h.header.size != sizeof(t_client_item_buy)) break;
 				RecvItemBuy(cn, &packet->u.client_item_buy);
 				break;
 			}
 		case CMD_ITEM_SELL_REQ:
 			{
+                if (packet->h.header.size != sizeof(t_client_item_sell)) break;
 				RecvItemSell(cn, &packet->u.client_item_sell);
 				break;
 			}

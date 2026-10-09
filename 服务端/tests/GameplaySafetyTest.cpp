@@ -14,6 +14,25 @@ struct TradeFixture
 
 int main()
 {
+    assert(IsGameplayIndexValid(0, 398) && IsGameplayIndexValid(397, 398));
+    assert(!IsGameplayIndexValid(-1, 398) && !IsGameplayIndexValid(398, 398));
+    int storeCounts[30] = {};
+    storeCounts[29] = 500;
+    assert(IsStoreListValid(0, 30, storeCounts, 500));
+    assert(IsStoreListValid(29, 30, storeCounts, 500));
+    assert(!IsStoreListValid(-1, 30, storeCounts, 500));
+    assert(!IsStoreListValid(30, 30, storeCounts, 500));
+    storeCounts[0] = -1;
+    assert(!IsStoreListValid(0, 30, storeCounts, 500));
+    storeCounts[0] = 501;
+    assert(!IsStoreListValid(0, 30, storeCounts, 500));
+    assert(!IsStoreListValid(0, 30, nullptr, 500));
+    for (int position = -1; position <= 256; ++position)
+    {
+        const bool expected = position >= 0 && position < 128 &&
+            position / 32 < 3 && (position / 8) % 4 < 3;
+        assert(IsInventoryPositionValid(position) == expected);
+    }
     assert(IsRegularMonsterRespawnEligible(true, 0, 0, 0, false));
     assert(!IsRegularMonsterRespawnEligible(false, 0, 0, 0, false));
     assert(!IsRegularMonsterRespawnEligible(true, 1, 0, 0, false));
