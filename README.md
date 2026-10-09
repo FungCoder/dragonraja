@@ -12,13 +12,13 @@
 
 ## 服务端与数据库下载
 
-[查看 v2026.10.08 预发布](https://github.com/FungCoder/dragonraja/releases/tag/v2026.10.08)。
+[查看 v1.0.0 预发布](https://github.com/FungCoder/dragonraja/releases/tag/v1.0.0)。
 
 | 下载 | 内容 |
 |---|---|
-| [Windows x64 服务端运行包](https://github.com/FungCoder/dragonraja/releases/download/v2026.10.08/DragonRajaServer-2026.10.08-win64.zip) | 游戏服务程序、98份地图实例配置、地图资源、数据库安装文件和使用说明 |
-| [MySQL 数据库安装包](https://github.com/FungCoder/dragonraja/releases/download/v2026.10.08/DragonRaja-MySQL-2026.10.08.zip) | 三个数据库安装文件及说明 |
-| [SHA256 校验文件](https://github.com/FungCoder/dragonraja/releases/download/v2026.10.08/SHA256SUMS.txt) | 两个ZIP附件的校验值 |
+| [Windows x64 服务端运行包](https://github.com/FungCoder/dragonraja/releases/download/v1.0.0/DragonRajaServer-2026.10.08-win64.zip) | 游戏服务程序、98份地图实例配置、地图资源、数据库安装文件和使用说明 |
+| [MySQL 数据库安装包](https://github.com/FungCoder/dragonraja/releases/download/v1.0.0/DragonRaja-MySQL-2026.10.08.zip) | 三个数据库安装文件及说明 |
+| [SHA256 校验文件](https://github.com/FungCoder/dragonraja/releases/download/v1.0.0/SHA256SUMS.txt) | 两个ZIP附件的校验值 |
 
 使用运行包时无需先编译服务端，完整解压后按包内README配置数据库、网络和安装路径，再启动服务。该版本为预发布，目标环境的完整登录、全地图及公网玩法仍需验证。
 
@@ -364,7 +364,7 @@ Set-Location D:\DragonRajaClient
 
 三个SQL已在独立MySQL 8.0.12实例重导入，282张表的数量和逐表行数核对通过，总库登录过程对不存在账号返回空结果。
 
-v2026.10.08服务端附件完成五个组件构建、玩法安全/物件读取/运营倍率及三类服务容量的六项离线测试、代理参数验证。两个ZIP的全部文件解压内容逐项通过SHA256核对。
+v1.0.0服务端附件完成五个组件构建、玩法安全/物件读取/运营倍率及三类服务容量的六项离线测试、代理参数验证。两个ZIP的全部文件解压内容逐项通过SHA256核对。
 
 尚未完成全新机器开服、客户端旧依赖补齐或全地图玩法验收。历史缺地形地图为KAELUNE、FIGHT2、HOUSE、HILL、ITEMSEARCH；SN_2F、SOCCER缺可靠目录元数据。首领阶段、国战、静态门/箱和部分经验模板仍待核验，不能称为完整原版恢复。
 
