@@ -12,15 +12,25 @@
 
 ## 服务端与数据库下载
 
-[查看 v1.0.0 预发布](https://github.com/FungCoder/dragonraja/releases/tag/v1.0.0)。
+[查看 v1.0.1 预发布](https://github.com/FungCoder/dragonraja/releases/tag/v1.0.1)。
 
 | 下载 | 内容 |
 |---|---|
-| [Windows x64 服务端运行包](https://github.com/FungCoder/dragonraja/releases/download/v1.0.0/DragonRajaServer-2026.10.08-win64.zip) | 游戏服务程序、98份地图实例配置、地图资源、数据库安装文件和使用说明 |
-| [MySQL 数据库安装包](https://github.com/FungCoder/dragonraja/releases/download/v1.0.0/DragonRaja-MySQL-2026.10.08.zip) | 三个数据库安装文件及说明 |
-| [SHA256 校验文件](https://github.com/FungCoder/dragonraja/releases/download/v1.0.0/SHA256SUMS.txt) | 两个ZIP附件的校验值 |
+| [Windows x64 服务端运行包](https://github.com/FungCoder/dragonraja/releases/download/v1.0.1/DragonRajaServer-v1.0.1-win64.zip) | 游戏服务程序、98份地图实例配置、地图资源、数据库安装文件和使用说明 |
+| [MySQL 数据库安装包](https://github.com/FungCoder/dragonraja/releases/download/v1.0.1/DragonRaja-MySQL-v1.0.1.zip) | 三个数据库安装文件及说明 |
+| [SHA256 校验文件](https://github.com/FungCoder/dragonraja/releases/download/v1.0.1/SHA256SUMS.txt) | 两个ZIP附件的校验值 |
 
 使用运行包时无需先编译服务端，完整解压后按包内README配置数据库、网络和安装路径，再启动服务。该版本为预发布，目标环境的完整登录、全地图及公网玩法仍需验证。
+
+## v1.0.1 更新与升级
+
+- 修复商店购买、回收、维修及NPC模板加载的越界问题，拒绝异常报文长度。
+- 角色状态采用一次参数化更新，背包、银行、技能等保存统一检查执行结果与匹配行数；每个保存单元采用事务。
+- 保存失败及提交结果异常明确报错，保持原网络协议和数据表示兼容。
+
+已有服务器升级时先让玩家正常退出并确认保存，停止相关服务后更新RajaDB及所有使用中的地图实例程序。保留现有INI和账号/角色数据库，不需要重新导入数据库安装SQL；核对启动入口使用的程序版本后，先测试登录、商店、保存和退出重登，再开放玩家连接。
+
+旧版下载见[历史发行](https://github.com/FungCoder/dragonraja/releases)。
 
 ## 目录
 
@@ -364,7 +374,7 @@ Set-Location D:\DragonRajaClient
 
 三个SQL已在独立MySQL 8.0.12实例重导入，282张表的数量和逐表行数核对通过，总库登录过程对不存在账号返回空结果。
 
-v1.0.0服务端附件完成五个组件构建、玩法安全/物件读取/运营倍率及三类服务容量的六项离线测试、代理参数验证。两个ZIP的全部文件解压内容逐项通过SHA256核对。
+v1.0.1服务端附件通过核心组件编译验证、商店/NPC边界回归、保存故障注入、真实MySQL临时表保存及代理参数验证。98份地图实例使用同版修复程序；两个ZIP的全部文件内容逐项通过SHA256核对。
 
 尚未完成全新机器开服、客户端旧依赖补齐或全地图玩法验收。历史缺地形地图为KAELUNE、FIGHT2、HOUSE、HILL、ITEMSEARCH；SN_2F、SOCCER缺可靠目录元数据。首领阶段、国战、静态门/箱和部分经验模板仍待核验，不能称为完整原版恢复。
 
