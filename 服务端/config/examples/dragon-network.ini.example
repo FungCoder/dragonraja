@@ -9,5 +9,6 @@ name1_host1=127.0.0.1
 name1_host2=127.0.0.1
 ServerSet=0
 proxy_port=3000
-agent_port=7000
+port=7100
+agent_port=7100
 direct_agent=1

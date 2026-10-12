@@ -1,6 +1,6 @@
 # Dragon Raja Windows / MySQL
 
-更新日期：2026-10-10。本仓库提供游戏客户端、服务端源码和MySQL数据库安装文件。
+更新日期：2026-10-12。本仓库提供游戏客户端、服务端源码和MySQL数据库安装文件。
 
 使用顺序：[完整操作流程](#从安装到进入游戏) → [数据库安装](database/README.md) → [源码编译](#源码编译说明) → [服务端配置启动](#服务端使用说明) → [客户端IP与登录](#客户端配置与进入游戏)。本仓库没有注册网站，也不包含完整游戏运行资源。
 
@@ -202,7 +202,7 @@ Copy-Item '服务端\config\examples\MapServer.ini.example' 'D:\DragonRajaServer
 | 地图资源路径、地图名称及`option/LogPath` | 资源加载和日志 |
 | `external_server_info` | 外部服务目录，按完整模板和拓扑配置 |
 
-协议按端口范围区分组件：代理3000～3999、数据库服务4000～4999、地图5000～6999、登录服务7000～7999。历史同机配置使用代理3000、RajaDB 4100、AgentServer内部7001、用户登录7000；地图各用独立端口。MySQL 3306与RajaDB 4100是不同端口。
+协议按端口范围区分组件：代理3000～3999、数据库服务4000～4999、地图5000～6999、登录服务7000～7999。同机示例使用代理3000、RajaDB 4100、AgentServer内部7101、用户登录7100；地图各用独立端口。MySQL 3306与RajaDB 4100是不同端口。若Windows将所选端口列为保留端口，应选可用端口并同步客户端及服务配置。
 
 `map_info.port`、`mapname/mapnameinfo`地址和端口、`mapserverinfo`地址及路径应与地图INI一致。公开基线中的回环地址和`.`路径是同机配置起点；换机或跨机部署需按实际环境设置。客户端目标地址、内部服务IP和用户监听地址分别配置。
 
@@ -237,7 +237,7 @@ RajaDB代码会尝试读取资源目录中的`data/IdPassword.bin`，成功时�
 
 ```powershell
 Set-Location D:\DragonRajaServer
-.\exe\MockProxy.exe 3000 127.0.0.1 7001 4100 5000 --validate-config
+.\exe\MockProxy.exe 3000 127.0.0.1 7101 4100 5000 --validate-config
 if ($LASTEXITCODE -ne 0) { throw '代理参数检查失败' }
 ```
 
@@ -245,7 +245,7 @@ if ($LASTEXITCODE -ne 0) { throw '代理参数检查失败' }
 
 | 顺序 | 工作目录 | 命令 |
 |---|---|---|
-| 1 | `D:\DragonRajaServer\exe` | `MockProxy.exe 3000 127.0.0.1 7001 4100 5000` |
+| 1 | `D:\DragonRajaServer\exe` | `MockProxy.exe 3000 127.0.0.1 7101 4100 5000` |
 | 2 | `D:\DragonRajaServer\DBDemon\exe` | `RajaDB.exe` |
 | 3 | `D:\DragonRajaServer\exe` | `AgentServer.exe` |
 | 4 | 每个`runtime/maps/<地图实例>`目录 | `MapServer.exe` |
@@ -261,6 +261,14 @@ if ($LASTEXITCODE -ne 0) { throw '代理参数检查失败' }
 首次验收包括组件监听与互联、登录、创角、进图、保存及再次登录、跨图、NPC交互、经验和掉落、商店、邮件/仓库及停服重启。端口监听或数据库导入成功不能替代游戏内验收。
 
 公网/NAT部署尚未完整验证。需实际核验客户端地址、内外IP、登录和地图端口映射，不保证只开放登录端口即可游玩。
+
+### 国战与边境战配置
+
+战事管理地图为EVENT2（5250）。经典国战使用NATION1～3（5991～5993），新国战使用NATION4（5980）；对应地图和管理地图需要在线互联。时刻从MySQL的`WarStartUpTBL`读取：Type=0为经典国战、Type=1为新国战、Type=2为常规边境战。
+
+常规边境战需将[七地图配置示例](服务端/config/examples/MapServerConfig.ini.example)中的`LocalWarfield`和`LocalWarMovePoint`两节合并到运行资源目录的`data/MapServerConfig.ini`，保留其他设置。示例适用于BIG_G、HU_VM、RENES_OUT、BIG_TREE、SOURCE、COLOR、SEDLESS及匹配的结界石资源，不能用于不同地图版本的任意坐标。
+
+更新地图服后，应检查管理地图和各战场初始化、互联，再用不同国家的测试角色验证报名、传送、攻击、结界石胜负、奖励及回城。独立的EventLocalWar活动另行配置，不随常规边境战自动启用。
 
 ## 客户端配置与进入游戏
 
@@ -286,7 +294,7 @@ name1_host1=127.0.0.1
 name1_host2=127.0.0.1
 ServerSet=0
 proxy_port=3000
-agent_port=7000
+agent_port=7100
 direct_agent=1
 ```
 
@@ -297,7 +305,7 @@ direct_agent=1
 | `name1` | 服务器列表显示名称，示例使用ASCII名称Local |
 | `server_count` | 示例只有一项服务器，设为1 |
 | `ServerSet` | 默认选择的列表索引；第一项为0 |
-| `agent_port` | AgentServer用户侧登录端口，示例7000；不是内部7001 |
+| `agent_port` | AgentServer用户侧登录端口，示例7100；内部端口为7101 |
 | `proxy_port` | 代理查询端口，示例3000；不是MySQL端口3306 |
 | `direct_agent` | 当前客户端设为1直接连接登录服务；设为0则先从代理获取登录地址 |
 | `ver` | 保留与程序/服务端匹配的原值，必须能读取为非零，不能删除或自行猜测 |
@@ -310,7 +318,7 @@ direct_agent=1
 
 | 情况 | 客户端四个host字段 | 服务端对应设置 |
 |---|---|---|
-| 客户端和服务端在同一电脑 | 127.0.0.1 | 同机示例，登录监听7000 |
+| 客户端和服务端在同一电脑 | 127.0.0.1 | 同机示例，登录监听7100 |
 | 同一局域网的另一台电脑 | 服务器的局域网IPv4，例如192.168.1.50 | AgentServer用户监听使用该网卡地址或0.0.0.0；客户端可见地址使用实际局域网IP |
 | 公网/NAT连接 | 服务器公网IPv4 | 配置外部端口映射、用户监听和客户端可见地址，目标网络须实测 |
 
@@ -320,10 +328,10 @@ AgentServer的`server_info/own_server_ip_for_user`是绑定监听地址，`adver
 
 ### 4. 检查连接并启动客户端
 
-在客户端电脑的PowerShell中先检查7000登录端口；局域网或公网测试将地址换成对应服务器IPv4：
+在客户端电脑的PowerShell中先检查7100登录端口；局域网或公网测试将地址换成对应服务器IPv4：
 
 ```powershell
-Test-NetConnection -ComputerName 127.0.0.1 -Port 7000
+Test-NetConnection -ComputerName 127.0.0.1 -Port 7100
 ```
 
 `TcpTestSucceeded=True`只表示端口可达。若为False，先检查AgentServer进程、实际监听IP/端口及对应防火墙/端口映射，不要反复改账号密码。
@@ -354,7 +362,7 @@ Set-Location D:\DragonRajaClient
 | 修改IP后仍连旧地址 | 是否编辑EXE同目录dragon.ini、四个host字段是否一致、启动器是否改写文件 |
 | 启动即退出或Init失败 | 原有ver是否缺失/为0、host1/host2是否为空、资源及运行依赖是否齐全 |
 | 报语言包或地图文件错误 | 是否从完整客户端目录启动，语言/地图资源与程序版本是否匹配 |
-| 无法连接或连接超时 | IPv4、agent_port、direct_agent及AgentServer用户监听；不要误用7001或3306 |
+| 无法连接或连接超时 | IPv4、agent_port、direct_agent及AgentServer用户监听；不要误用7101或3306 |
 | 账号不存在或密码错误 | 总库账号、口令与登录过程，游戏账号和数据库账号不能混用 |
 | 登录后提示计费/到期 | BETA_SERVER、有效期和计费配置是否一致 |
 | 创角失败或进图加载不结束 | 角色名规则、数据库错误、出生地实例和资源、完整地图目录协商 |

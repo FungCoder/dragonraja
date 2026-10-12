@@ -187,6 +187,7 @@ typedef struct StartWarTime
 {
 	int DayofWeek;
 	int DHour;
+	int LastStartedDate;
 }* LP_START_WAR_TIME;
 
 class cWarfield
@@ -258,6 +259,8 @@ class cWarfield
 
 public :
 
+	bool m_bInitialized;
+	bool IsInitialized() const { return m_bInitialized; }
 	cWarfield();
 	~cWarfield();
 
@@ -352,7 +355,7 @@ public :
 	void			AllGuardStoneWasBroked(); // 전쟁승패의 결정..
 	void			ProcessNationWarEnd(bool AttackerWin);    //전쟁의 처리 //인자 콜타입.. 시간, 수호석..
 
-	void			FirstMakeWeaponData();
+	bool			FirstMakeWeaponData();
 	void			MakeWeaponData();   //NPC생성
   void      WeaponDataList();   // 디버그용
 
@@ -510,6 +513,7 @@ class cNation
 
 public :
 
+	DWORD m_dwLastScheduleCheck;
 	cNation();
 	~cNation();
 
@@ -778,6 +782,11 @@ public:
 		m_pWarStartInfo = pWarStartInfo;
 	}	//> CSD-030723
 
+	int GetLocalWarResult(int index) const
+	{
+		return index >= 0 && index < NW_NATION_COUNT ? m_LocalWarResult[index] : 0;
+	}
+
 	CWarStartInfo* GetWarStartInfo()
 	{	//< CSD-030723
 		return m_pWarStartInfo;
@@ -871,7 +880,7 @@ public :
 	bool			LoadGData();
 
 	bool			LoadData();
-	void			FirstMakeNPCPtr();
+	bool			FirstMakeNPCPtr();
 	void			MakeNPCPtr();
 	bool			MakeGuardStone(const int iIndex, const int iCallType);//030102 lsw //FirstMakeNPCPtr() MakeNPCPtr() 에서만 호출 합니다.
 
@@ -938,7 +947,7 @@ public :
 	bool			LoadSMonster(WORD WarfieldNo);
 	void			TeamClear();
 	void			GuardClear();
-	void			SetTeamCount(int Count);
+	bool			SetTeamCount(int Count);
 
 	DWORD			GetRemainTime();
 

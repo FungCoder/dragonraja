@@ -8,6 +8,8 @@
 #include "CItem.h"
 #include "NationSys.h"
 #include "LTSSupport.h"
+#include "LocalWarRules.h"
+#include "SealStoneGameServer.h"
 #include "Scrp_exe.h"
 #include "dungeon.h"
 #include "LogManager.h"
@@ -324,6 +326,55 @@ bool InitLocalWarSystem()				// LTS NEW LCOALWAR
 	return true;
 }
 
+void SetLocalWarState(int active)
+{
+    g_LocalWarBegin = active != 0;
+    if (g_pLocalWarfield != NULL)
+        g_pLocalWarfield->SetLocalWarStatus(g_LocalWarBegin);
+}
+
+void SyncLocalWarStateToMap(WORD port)
+{
+    if (!isNationManageServer() || g_pNation == NULL ||
+        port == NATION_MANAGE_SERVER) return;
+    SERVER_DATA* server = g_pServerTable->GetConnectedServerData(port);
+    if (server == NULL || server->dwServerType != SERVER_TYPE_MAP) return;
+
+    t_packet packet = {};
+    packet.h.header.type = g_pNation->GetLocalWarStatus()
+        ? CMD_STEALSTONE_BREAKABLE : CMD_STEALSTONE_NON_BREAKABLE;
+    if (SealStoneBreakable == CMD_STEALSTONE_NON_BREAKABLE_PEACE &&
+        !g_pNation->GetLocalWarStatus())
+        packet.h.header.type = CMD_STEALSTONE_NON_BREAKABLE_PEACE;
+    packet.h.header.size = sizeof(t_CommonDataC);
+    packet.u.LocalWar.CommonDataC.Data = g_pNation->GetLocalWarStatus();
+    if (!g_pServerTable->SendRajaPacketToOtherMapServer(port,
+        (char*)&packet, sizeof(t_header) + packet.h.header.size))
+    {
+        MyLog(0, "LocalWar state sync failed for map port %d", port);
+        return;
+    }
+
+    for (int nationIndex = 0; nationIndex < 3; ++nationIndex)
+    {
+        packet.h.header.type = CMD_LOCALWAR_NATION_RESULT;
+        packet.h.header.size = sizeof(packet.u.LocalWar.LocalWarResult);
+        packet.u.LocalWar.LocalWarResult.NationIndex = nationIndex;
+        packet.u.LocalWar.LocalWarResult.Result =
+            g_pNation->GetLocalWarResult(nationIndex);
+        if (!g_pServerTable->SendRajaPacketToOtherMapServer(port,
+            (char*)&packet, sizeof(t_header) + packet.h.header.size))
+            MyLog(0, "LocalWar nation sync failed for map port %d", port);
+    }
+}
+
+void SyncLocalWarStateToConnectedMaps()
+{
+    if (!isNationManageServer() || g_pNation == NULL) return;
+    for (int mapIndex = 0; mapIndex < MAX_MAP_; ++mapIndex)
+        if (MapInfo[mapIndex].port > 0)
+            SyncLocalWarStateToMap((WORD)MapInfo[mapIndex].port);
+}
 void CloseLocalWarSystem()
 {
 	SAFE_DELETE(g_pLocalWarfield);
@@ -481,6 +532,7 @@ void CheckLocalWarDeath(CHARLIST* pCaster,CHARLIST* pTarget)	// 011217 LTS
 
 cLocalWarfield::cLocalWarfield()
 {
+	SetLocalWarStatus(g_LocalWarBegin);
 	m_tLocalWarfieldInfo.Index=0;
 	m_tLocalWarfieldInfo.Port=0;
 	m_tLocalWarfieldInfo.Phase=0;
@@ -908,6 +960,15 @@ void RecvCMD_LOCALWAR_JOIN(t_packet *p, t_connection c[], int cn )
 	if(!ch){return;}
 
 	t_packet packet, packet2;
+	if (!g_LocalWarBegin || !IsValidLocalWarNation(ch->name_status.nation) ||
+		!g_LocalWarResult[GetNationIndex(ch->name_status.nation)])
+	{
+		packet.h.header.type=CMD_LOCALWAR_JOIN_RESULT;
+		packet.u.LocalWar.CommonDataC.Data=FALSE;
+		packet.h.header.size=sizeof(t_CommonDataC);
+		QueuePacket(c,cn,&packet,1);
+		return;
+	}
 	if (!ch->JoinLocalWar)
 	{
 		if (ch->name_status.nation!=MapInfo[MapNumber].nation)
@@ -918,6 +979,8 @@ void RecvCMD_LOCALWAR_JOIN(t_packet *p, t_connection c[], int cn )
 			QueuePacket(c,cn,&packet,1);
 			return;
 		}
+		ch->GainedFame=0;
+		ch->CurrentPhase=0;
 		ch->JoinLocalWar=TRUE;
 		packet.h.header.type=CMD_LOCALWAR_JOIN_RESULT;
 		packet.u.LocalWar.CommonDataC.Data=TRUE;
@@ -1075,9 +1138,8 @@ void CalcGainedFame(CHARLIST* ch)// LTS DUAL FAME
 	
 	if (tempFame>=5&&tempFame<=9) 
 	{
-		int tempExp_Grade = ch->GetLevel() - 4; // CSD-030806
+		int tempExp_Grade = LocalWarExperienceGrade(ch->GetLevel(), 4); // CSD-030806
 
-		if (tempExp_Grade>110) {tempExp_Grade=110;}
 
 		if (ch->ChangeUpAddExpBonus(g_pNationWar_Exp[tempExp_Grade]))
 		{	//< CSD-TW-030624
@@ -1091,8 +1153,7 @@ void CalcGainedFame(CHARLIST* ch)// LTS DUAL FAME
 	}
 	else if (tempFame>=10&&tempFame<=11)
 	{
-		int tempExp_Grade = ch->GetLevel() - 2; // CSD-030806
-		if (tempExp_Grade>110){ tempExp_Grade=110;}
+		int tempExp_Grade = LocalWarExperienceGrade(ch->GetLevel(), 2); // CSD-030806
 				
 		if (ch->ChangeUpAddExpBonus(g_pNationWar_Exp[tempExp_Grade]))
 		{	//< CSD-TW-030624
@@ -1106,9 +1167,8 @@ void CalcGainedFame(CHARLIST* ch)// LTS DUAL FAME
 	}
 	else if (tempFame==12)
 	{
-		int tempExp_Grade = ch->GetLevel(); // CSD-030806
+		int tempExp_Grade = LocalWarExperienceGrade(ch->GetLevel(), 0); // CSD-030806
 
-		if (tempExp_Grade>110){tempExp_Grade=110;}
 		
 		if (ch->ChangeUpAddExpBonus(g_pNationWar_Exp[tempExp_Grade]))
 		{	//< CSD-TW-030624
@@ -1135,7 +1195,7 @@ void CalcMapUsersGainedFame(int Nation)
 		
 		if (pUser != NULL)
 		{
-			if (pUser->JoinLocalWar && pUser->name_status.nation == Nation) 
+			if (pUser->JoinLocalWar && IsLocalWarWinningNation(Nation, pUser->name_status.nation))
 			{
 				CalcGainedFame(pUser);
 			}
@@ -1183,13 +1243,20 @@ void CalcMapUsersGainedFame(int Nation)
 
 void SendCMD_LOCALWAR_END2Client(t_packet* p)
 {	//< CSD-CN-031213 : ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½. 
-	g_pUserManager->SendPacket(p);
-
 	CUserManager::HASH_USER user = g_pUserManager->GetUserSet();
 
 	for (CUserManager::ITOR_USER i = user.begin(); i != user.end(); ++i)
 	{
 		CHARLIST* pUser = CheckServerId(i->second);
+		if (pUser != NULL && connections[i->second].dwAgentConnectionIndex != 0 &&
+			connections[i->second].state >= CONNECT_JOIN)
+		{
+			t_packet clientPacket = *p;
+			clientPacket.u.LocalWar.CommonDataC.Data =
+				IsLocalWarWinningNation(p->u.LocalWar.CommonDataC.Data, pUser->name_status.nation)
+				? pUser->name_status.nation : 0;
+			QueuePacket(connections, i->second, &clientPacket, 1);
+		}
 		
 		if (pUser != NULL && pUser->JoinLocalWar)
 		{
@@ -1204,6 +1271,8 @@ void RecvCMD_LOCALWAR_BEGIN( t_packet *p, t_connection c[], int cn )
 	SendCMD_LOCALWAR_BEGIN2Client();
 
 	g_LocalWarBegin=1;
+	for (int nationIndex=0; nationIndex<3; ++nationIndex)
+		g_LocalWarResult[nationIndex]=1;
 //	MyLog(0,"Local War Status : %d",g_LocalWarBegin);
 
 	if (g_isLocalWarServer)
@@ -1415,24 +1484,21 @@ void SendCMD_LOCALWAR_END()						// LTS NEW LOCALWAR  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï
 	case 3:
 		{
 			//packet.u.LocalWar.CommonDataC.Data = NationTBL[1]+NationTBL[2];
-			SendCMD_LOCALWAR_END_WIN(NationTBL[1]);// 030518 kyo 
-			SendCMD_LOCALWAR_END_WIN(NationTBL[2]);// 030518 kyo 
+			SendCMD_LOCALWAR_END_WIN(NationTBL[1] + NationTBL[2]);
 			MyLog(0, "LocalWar End:: Win Team=%s && Win Team=%s", NationTBLStr[1], NationTBLStr[2] );// 030515 kyo
 			break;
 		}
 	case 4:
 		{
 			//packet.u.LocalWar.CommonDataC.Data = NationTBL[0]+NationTBL[2];
-			SendCMD_LOCALWAR_END_WIN(NationTBL[0]);// 030518 kyo 
-			SendCMD_LOCALWAR_END_WIN(NationTBL[2]);// 030518 kyo 
+			SendCMD_LOCALWAR_END_WIN(NationTBL[0] + NationTBL[2]);
 			MyLog(0, "LocalWar End:: Win Team=%s && Win Team=%s", NationTBLStr[0], NationTBLStr[2] );// 030515 kyo
 			break;
 		}
 	case 5:
 		{
 			//packet.u.LocalWar.CommonDataC.Data = NationTBL[0]+NationTBL[1];
-			SendCMD_LOCALWAR_END_WIN(NationTBL[0]);// 030518 kyo 
-			SendCMD_LOCALWAR_END_WIN(NationTBL[1]);// 030518 kyo 
+			SendCMD_LOCALWAR_END_WIN(NationTBL[0] + NationTBL[1]);
 			MyLog(0, "LocalWar End:: Win Team=%s && Win Team=%s", NationTBLStr[0], NationTBLStr[1] );// 030515 kyo
 			break;
 		}
@@ -1513,6 +1579,7 @@ void ReturnLocalwarHome()
 
 void RecvCMD_LOCALWAR_END(t_packet *p, t_connection c[], int cn )
 {	//< CSD-031007
+	if (!g_LocalWarBegin) return;
 	g_LocalWarBegin=0;
 	//	MyLog(0,"Local War Status : %d",g_LocalWarBegin);
 	::CalcMapUsersGainedFame(p->u.LocalWar.CommonDataC.Data);
@@ -2529,7 +2596,7 @@ void RecvCMD_LOCALWAR_NATION_RESULT(t_packet *p, t_connection c[], int cn )		// 
 {
 	int NationIndex=p->u.LocalWar.LocalWarResult.NationIndex;
 	int Result=p->u.LocalWar.LocalWarResult.Result;
-	if (NationIndex<0||NationIndex>3) return;
+	if (NationIndex<0||NationIndex>=3) return;
 	g_LocalWarResult[NationIndex]=Result;
 	
 	CheckAndFreeLocalWar(NationIndex,Result);
@@ -2541,6 +2608,8 @@ void RecvCMD_LOCALWAR_MAPMOVE (t_packet *p, t_connection c[], int cn )	// LTS NE
 	const int	Possession[7]={0,3,4,6,3,4,6};		//ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ 
 	const char  MapName[7][MAX_PATH]={ "BIG_G","HU_VM","RENES_OUT","BIG_TREE","SOURCE","COLOR","SEDLESS" };
 	int			MoveMap=p->u.LocalWar.CommonDataC.Data;
+	if (!CheckServerId(cn) || !IsValidLocalWarMap(MoveMap) ||
+		!IsValidLocalWarNation(c[cn].chrlst.name_status.nation) || !g_LocalWarBegin) return;
 	char		tempMapName[MAX_PATH];
 	int			NationIndex=GetNationIndex(c[cn].chrlst.name_status.nation);
 	t_packet	packet;

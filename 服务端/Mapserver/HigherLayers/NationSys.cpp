@@ -1,6 +1,8 @@
 ﻿#include "..\stdafx.h"
 #include "DefaultHeader.h"
 #include "NationSys.h"
+#include "WarSchedule.h"
+#include "WarStartupReader.h"
 #include "..\LowerLayers\//MyLog.h"
 #include "SealStone.h"
 #include "..\LowerLayers\servertable.h"
@@ -561,7 +563,7 @@ bool LoadNationWar_Exp()		// LTS NEW LOCALWAR
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
 	SWORD	nClos;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 	int		FieldCount;
 	int		tempExpGrade;
@@ -838,7 +840,7 @@ bool LoadWarfieldPossession()		// 锟斤拷鸥飘锟斤拷锟斤拷 DB锟斤拷�
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
 	SWORD	nClos;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 
 	SQLAllocStmt(hDBC,&hStmt);
@@ -896,16 +898,18 @@ bool InitNationSystem()
 	if (isNationManageServer())
 	{
 		g_pNation=new cNation;
-		if (g_pNation==NULL) 
+		if (g_pNation==NULL || !g_pNation->InitNation())
 		{
+			SAFE_DELETE(g_pNation);
 			return false;
 		}
 	}
 	if (isNationWarfieldServer())
 	{
 		g_pWarfield=new cWarfield;
-		if (g_pWarfield==NULL) 
+		if (g_pWarfield==NULL || !g_pWarfield->IsInitialized())
 		{
+			SAFE_DELETE(g_pWarfield);
 			return false;
 		}
 	}
@@ -1012,6 +1016,11 @@ void RecvCMD_NW_MAP_MOVE(t_packet *p,t_connection c[],const int cn)
 	LPCHARLIST ch = ::CheckServerId(cn);
 	if(!ch){return;}
 	const int WarfieldNo=p->u.NationWar.NWMapMove.WarfieldNo;
+	if (!IsWarfieldNumberValid(WarfieldNo, NW_WARFIELD_COUNT, MAX_NEW_WARFIELD))
+	{
+		SendCMD_NW_MAP_MOVE_FAIL(c, cn, 4);
+		return;
+	}
 	int WarfieldStatus = 0;
 
 	if (isNationManageServer())	
@@ -1022,7 +1031,7 @@ void RecvCMD_NW_MAP_MOVE(t_packet *p,t_connection c[],const int cn)
 		}
 		else if (WarfieldNo>=3)
 		{
-			WarfieldStatus=g_pNation->GetNewWarfieldStatus(WarfieldNo);	// 锟斤拷锟斤拷锟斤拷 锟斤拷锟铰革拷 锟斤拷锟铰达拷.
+			WarfieldStatus=g_pNation->GetNewWarfieldStatus(WarfieldNo-3);	// 锟斤拷锟斤拷锟斤拷 锟斤拷锟铰革拷 锟斤拷锟铰达拷.
 		}
 	}
 	else 
@@ -1080,8 +1089,12 @@ void RecvCMD_NW_MAP_MOVE(t_packet *p,t_connection c[],const int cn)
 
 void CallNWMapMove(const int WarfieldNo,t_connection c[],const int cn)  //努锟斤拷锟教撅拷飘锟斤拷 锟斤拷锟斤拷锟斤拷锟教斤拷 锟斤拷锟教碉拷 // 011217 LTS
 {
+	if (!IsWarfieldNumberValid(WarfieldNo, NW_WARFIELD_COUNT, MAX_NEW_WARFIELD) || !CheckServerId(cn))
+	{
+		return;
+	}
 	char tempMapName[20] = {0,};
-	int WarfieldStatus;
+	int WarfieldStatus = 0;
 	if (isNationManageServer())
 	{
 		if (WarfieldNo>=0&&WarfieldNo<=2)
@@ -4703,6 +4716,10 @@ int CheckHandleByNationWar( t_packet *p, t_connection c[], const int cn )
 
 cWarfield::cWarfield()
 {
+	m_bInitialized = false;
+	m_cNpcCount = 0;
+	m_Status = NW_PEACE;
+	memset(m_LivePoints, 0, sizeof(m_LivePoints));
 	int i,j=0;
 	InitWarfield();								// 锟斤拷锟斤拷锟斤拷锟斤拷锟?锟绞憋拷拳 锟窖达拷.
 	InitSquad();								// 锟轿达拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷 锟绞憋拷拳锟窖达拷. 
@@ -4716,12 +4733,12 @@ cWarfield::cWarfield()
 	if (!isNationManageServer())				// 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷 锟狡聪帮拷 锟斤拷锟斤拷锟斤拷 锟斤拷锟斤拷锟斤拷锟教革拷 锟斤拷锟斤拷锟窖达拷.
 	{
 		ClearSquadCount();						// 锟轿达拷锟斤拷 锟轿匡拷锟斤拷 墨锟斤拷飘锟斤拷  锟绞憋拷拳 锟窖达拷.
-		LoadWarfieldData(g_wMapServerPort);  //锟斤拷锟斤拷锟斤拷锟斤拷锟教革拷.. 锟节碉拷锟斤拷锟斤拷 锟斤拷锟斤拷锟?锟街撅拷锟?锟窖达拷.
-		LoadWarfieldPossession();					// 锟斤拷锟斤拷锟斤拷 锟斤拷锟斤拷锟酵革拷 锟叫撅拷麓锟?	锟劫凤拷锟斤拷锟斤拷 锟斤拷锟斤拷锟脚达拷.
-		LoadWarfieldWeaponData(g_wMapServerPort); //锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷 锟绞匡拷锟窖帮拷?		
-		LoadWarfieldMonsterData(g_wMapServerPort);	//锟斤拷锟斤拷 锟斤拷锟斤拷锟酵革拷 锟轿碉拷锟窖达拷.
-		LoadNationWar_Exp();						// 锟斤拷锟斤拷 锟斤拷锟斤拷摹锟斤拷 锟斤拷锟铰达拷.			// 020115 LTS
-		FirstMakeWeaponData();						// 锟斤拷锟斤公锟斤拷, 锟斤拷锟斤拷,锟斤拷龋锟斤拷 锟斤拷锟斤拷 锟斤拷摹锟窖达拷. 锟斤拷券锟斤拷锟斤拷锟教达拷.
+		if (!LoadWarfieldData(g_wMapServerPort)) return;  //锟斤拷锟斤拷锟斤拷锟斤拷锟教革拷.. 锟节碉拷锟斤拷锟斤拷 锟斤拷锟斤拷锟?锟街撅拷锟?锟窖达拷.
+		if (!LoadWarfieldPossession()) return;					// 锟斤拷锟斤拷锟斤拷 锟斤拷锟斤拷锟酵革拷 锟叫撅拷麓锟?	锟劫凤拷锟斤拷锟斤拷 锟斤拷锟斤拷锟脚达拷.
+		if (!LoadWarfieldWeaponData(g_wMapServerPort)) return; //锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷 锟绞匡拷锟窖帮拷?
+		if (!LoadWarfieldMonsterData(g_wMapServerPort)) return;	//锟斤拷锟斤拷 锟斤拷锟斤拷锟酵革拷 锟轿碉拷锟窖达拷.
+		if (!LoadNationWar_Exp()) return;						// 锟斤拷锟斤拷 锟斤拷锟斤拷摹锟斤拷 锟斤拷锟铰达拷.			// 020115 LTS
+		if (!FirstMakeWeaponData()) return;						// 锟斤拷锟斤公锟斤拷, 锟斤拷锟斤拷,锟斤拷龋锟斤拷 锟斤拷锟斤拷 锟斤拷摹锟窖达拷. 锟斤拷券锟斤拷锟斤拷锟教达拷.
 		for (i=2;i<m_cNpcCount+2;i++)
 		{
 			if (NPCList[i].SprNo==63) m_cGuardStoneCount++;			// 锟斤拷锟藉胶锟斤拷锟斤拷 锟斤拷锟斤拷 锟斤拷锟斤拷
@@ -4729,11 +4746,12 @@ cWarfield::cWarfield()
 			if (NPCList[i].SprNo>=65&&NPCList[i].SprNo<=67) m_cCastleDoorCount++;	// 锟斤拷锟斤拷锟斤拷 锟斤拷锟斤拷 锟斤拷锟斤拷.
 		}
 
-		LoadMonsterPoint();						// 锟斤拷锟斤拷锟斤拷 鸥锟较碉拷飘锟斤拷 锟睫葛府匡拷 锟街绰达拷. // 锟斤拷锟斤拷 锟斤拷锟较匡拷锟斤拷 锟叫撅拷麓锟?
+		if (!LoadMonsterPoint()) return;						// 锟斤拷锟斤拷锟斤拷 鸥锟较碉拷飘锟斤拷 锟睫葛府匡拷 锟街绰达拷. // 锟斤拷锟斤拷 锟斤拷锟较匡拷锟斤拷 锟叫撅拷麓锟?
 //		LoadMonsterPoint2();
 	}
 	if (isNationWarfieldServer())	InitWarLoop(); // 锟斤拷锟斤拷锟斤拷 锟斤拷锟斤拷锟教革拷 锟斤拷锟斤拷 锟绞憋拷 锟斤拷锟斤拷 锟矫帮拷锟斤拷 锟斤拷锟窖达拷.
 	else m_Status=1;								// 锟斤拷锟斤拷锟斤拷锟斤拷锟教革拷 锟斤拷锟斤拷锟斤拷 锟斤拷锟斤拷锟斤拷 锟斤拷锟铰革拷 1锟轿硷拷飘锟窖达拷.
+	m_bInitialized = true;
 }
 
 
@@ -4748,7 +4766,7 @@ void cWarfield::Destroy()
 	{
 		if (m_tMonsterPoint[i].Points!=NULL) 
 		{
-			SAFE_DELETE(m_tMonsterPoint[i].Points);
+			SAFE_DELETE_ARRAY(m_tMonsterPoint[i].Points);
 		}
 	}
 	DeleteAllKiller();
@@ -5218,7 +5236,7 @@ bool cWarfield::LoadWarfieldData(WORD PortNum)
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
 	SWORD	nClos;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 
 	SQLAllocStmt(hDBC,&hStmt);
@@ -5272,50 +5290,14 @@ bool cWarfield::LoadWarfieldData(WORD PortNum)
 	    SQLFreeStmt(hStmt,SQL_DROP);
 		return false;
 	}               //WarFieldTBL锟斤拷 Attacker Live Point X
-	ret=SQLGetData(hStmt,7,SQL_C_SLONG,&m_LivePoints[NW_ATTACKER].x,sizeof(DWORD),&cbValue);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-	{
-		MyLog(0,"Warfield Table SQL Return Error(%d)!!",ret);
-	    SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}				//WarFieldTBL锟斤拷 Attacker Live Point Y
-	ret=SQLGetData(hStmt,8,SQL_C_SLONG,&m_LivePoints[NW_ATTACKER].y,sizeof(DWORD),&cbValue);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-	{
-		MyLog(0,"Warfield Table SQL Return Error(%d)!!",ret);
-	    SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}				//WarFieldTBL锟斤拷 Defencer Live Point X
-	ret=SQLGetData(hStmt,9,SQL_C_SLONG,&m_LivePoints[NW_DEFENCER].x,sizeof(DWORD),&cbValue);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-	{
-		MyLog(0,"Warfield Table SQL Return Error(%d)!!",ret);
-	    SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}				//WarFieldTBL锟斤拷 Defencer Live Point Y
-	ret=SQLGetData(hStmt,10,SQL_C_SLONG,&m_LivePoints[NW_DEFENCER].y,sizeof(DWORD),&cbValue);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-	{
-		MyLog(0,"Warfield Table SQL Return Error(%d)!!",ret);
-	    SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}				//WarFieldTBL锟斤拷 Reinforce Live Point X
-	ret=SQLGetData(hStmt,11,SQL_C_SLONG,&m_LivePoints[NW_REINFORCE].x,sizeof(DWORD),&cbValue);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-	{
-		MyLog(0,"Warfield Table SQL Return Error(%d)!!",ret);
-	    SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}				//WarFieldTBL锟斤拷 Reinforce Live Point Y
-	ret=SQLGetData(hStmt,12,SQL_C_SLONG,&m_LivePoints[NW_REINFORCE].y,sizeof(DWORD),&cbValue);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-	{
-		MyLog(0,"Warfield Table SQL Return Error(%d)!!",ret);
-	    SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
-
+	if (!ReadWarPoint(hStmt, 7, m_LivePoints[NW_ATTACKER]) ||
+        !ReadWarPoint(hStmt, 9, m_LivePoints[NW_DEFENCER]) ||
+        !ReadWarPoint(hStmt, 11, m_LivePoints[NW_REINFORCE]))
+    {
+        MyLog(0, "WarField live point data invalid");
+        SQLFreeStmt(hStmt, SQL_DROP);
+        return false;
+    }
     SQLFreeStmt(hStmt,SQL_DROP);
 	return true;
 }
@@ -5325,7 +5307,7 @@ bool cWarfield::LoadWarfieldWeaponData(WORD PortNum)			// 011022 LTS 锟皆硷�
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
 	SWORD	nClos;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 
 	SQLAllocStmt(hDBC,&hStmt);
@@ -5351,8 +5333,13 @@ bool cWarfield::LoadWarfieldWeaponData(WORD PortNum)			// 011022 LTS 锟皆硷�
 
 	int index=0;
 
-	while (ret==SQL_SUCCESS)
+	while (SQL_SUCCEEDED(ret))
 	{
+		if (index >= NW_MAX_NPC || index >= 127)
+		{
+			SQLFreeStmt(hStmt, SQL_DROP);
+			return false;
+		}
 		ret=SQLGetData(hStmt,1,SQL_C_SLONG,&m_tWeaponData[index].MonPointIndex,sizeof(int),&cbValue);
 		if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
 		{
@@ -5414,6 +5401,7 @@ bool cWarfield::LoadWarfieldWeaponData(WORD PortNum)			// 011022 LTS 锟皆硷�
 		ret=SQLFetch(hStmt);
 	}
     SQLFreeStmt(hStmt,SQL_DROP);
+	if (ret != SQL_NO_DATA) return false;
 	m_cNpcCount=index;
 	return true;
 }
@@ -5423,7 +5411,7 @@ bool cWarfield::LoadWarfieldMonsterData(WORD PortNum)
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
 	SWORD	nClos;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 	t_WeaponStruct Monster;
 
@@ -5576,7 +5564,7 @@ void cWarfield::SetSquadLeader(int Kind,int SquadNo,t_CommanderInformation* Squa
 //	m_tSquad[Kind].SquadInfo[SquadNo].Sok[2]=0; //锟接硷拷锟斤拷锟斤拷.. DICE锟斤拷锟斤拷..
 }
 
-void cWarfield::FirstMakeWeaponData()		// 锟斤拷锟斤辑锟斤拷锟斤拷 NPC锟斤拷 锟斤拷锟斤拷锟窖达拷. 锟斤拷锟斤拷执俑锟?.. Give Life 锟饺达拷.
+bool cWarfield::FirstMakeWeaponData()		// 锟斤拷锟斤辑锟斤拷锟斤拷 NPC锟斤拷 锟斤拷锟斤拷锟窖达拷. 锟斤拷锟斤拷执俑锟?.. Give Life 锟饺达拷.
 {
 	int Num;
 	int CreateResult;
@@ -5584,13 +5572,19 @@ void cWarfield::FirstMakeWeaponData()		// 锟斤拷锟斤辑锟斤拷锟斤拷 N
 	for (i=0;i<m_cNpcCount;i++)
 	{
 		Num=GetAliveNPCList();
+		if (Num < 0)
+		{
+			MyLog(0, "Warfield guard NPC capacity exhausted");
+			return false;
+		}
 		m_tWeaponData[i].NPC_ID=Num;
 		CreateResult=NPC_Create(Num,m_tWeaponData[i].NPC_Index,m_tWeaponData[i].Locationx,m_tWeaponData[i].Locationy,m_tWeaponData[i].EventNo,m_tWeaponData[i].GenerationPos,m_tWeaponData[i].GenerationType);
 		if (!CreateResult)
 		{
 			MyLog(0,"NPC CREATE FAILED!!, Set Dead!! NPC Index : %d",m_tWeaponData[i].NPC_Index);
 			m_tWeaponData[i].Status=0; //锟阶撅拷锟街达拷
-			SetTileDont(m_tWeaponData[i].MonPointIndex,0);		
+			SetTileDont(m_tWeaponData[i].MonPointIndex,0);
+			return false;
 		}
 		else
 		{
@@ -5606,6 +5600,7 @@ void cWarfield::FirstMakeWeaponData()		// 锟斤拷锟斤辑锟斤拷锟斤拷 N
 		MyLog(0,"ID : %03d, Index : %03d, LoacationX : %03d, LocationY : %03d",m_tWeaponData[i].NPC_ID,NPCList[m_tWeaponData[i].NPC_ID].npc_index,NPCList[m_tWeaponData[i].NPC_ID].X/32,NPCList[m_tWeaponData[i].NPC_ID].Y/32); 
 	}
 	MyLog(0,"GUARD STONE AND CASTLE GATEWAY LIST COMPLETE___________________");
+	return true;
 }
 
 void cWarfield::MakeWeaponData()		// 锟斤拷锟斤辑锟斤拷锟斤拷 锟斤拷锟?NPC锟斤拷 锟劫斤拷 锟斤拷锟斤拷锟窖达拷. 锟斤拷锟斤拷锟斤拷锟斤拷锟?GiveLife锟饺达拷.
@@ -6920,26 +6915,35 @@ void cWarfield::LoopTimeChange(t_packet* p)
 // Usage : Class Member Funtion Definition
 cNation::cNation()
 {
-	Warfield=NULL;
-	m_WarStart=0;
-	m_LocalWarStart=0;
-	m_pWarStartInfo = NULL; // CSD-030715
-	InitNation();
-	ClearLocalWarPoint();
-	LoadWarfieldPossession();					// 锟斤拷锟斤拷锟斤拷 锟斤拷锟斤拷锟酵革拷 锟叫撅拷麓锟?
-	ClearLocalWarResult();						// LTS NEW LOCALWAR
+    Warfield = NULL;
+    LocalWarfield = NULL;
+    m_pStartWarTime = NULL;
+    m_pNewStartWarTime = NULL;
+    m_iStartWarTimeCount = 0;
+    m_iNewStartWarTimeCount = 0;
+    m_LocalWarfieldSize = 0;
+    m_WarNo = 0;
+    m_WarStart = 0;
+    m_LocalWarStart = 0;
+    m_pWarStartInfo = NULL;
+    m_dwLastScheduleCheck = 0;
+    memset(m_VoteData, 0, sizeof(m_VoteData));
+    memset(LocalWarSealStoneStatus, 0, sizeof(LocalWarSealStoneStatus));
+    memset(m_NewWarfieldRemainTime, 0, sizeof(m_NewWarfieldRemainTime));
+    memset(&m_tTimeData, 0, sizeof(m_tTimeData));
+    ClearLocalWarPoint();
+    ClearLocalWarResult();
+    ClearLocalWarRemainTime();
+    ClearLocalWarDefencePoint();
+    InitNewWarfield();
 }
 
 cNation::~cNation()
 {
 	// 锟斤拷锟绞碉拷锟斤拷锟?锟斤拷锟斤拷飘锟斤拷锟斤拷 锟斤拷虐锟斤拷 锟窖达拷.
-	for (int i=0;i<NW_WARFIELD_COUNT;i++)
-	{
-		Warfield[i].Destroy();
-	}
-
 	SAFE_DELETE_ARRAY(Warfield);
 	SAFE_DELETE_ARRAY(m_pStartWarTime);
+	SAFE_DELETE_ARRAY(m_pNewStartWarTime);
 	SAFE_DELETE_ARRAY(LocalWarfield);
 	SAFE_DELETE(m_pWarStartInfo); // CSD-030723
 }
@@ -6983,6 +6987,7 @@ bool cNation::InitNation()						// 011028 LTS
 
 	if (!InitLocalWarfield()) {return false;}		// 锟斤拷锟斤拷锟斤拷 锟绞憋拷拳 
 	if (!InitNewWarfield()){return false;}
+	if (!LoadWarfieldPossession()) return false;
 	ClearAllLocalSealStoneHP();// 030516 kyo
 	return true;
 }
@@ -7127,7 +7132,7 @@ bool cNation::InitLocalWarfield()		// LTS NEW LOCALWAR
 void cNation::SetWarFieldStatus(int WarfieldNo,int Status)				// 011028 LTS	// 锟皆硷拷锟斤拷眉 
 {
 	if (Warfield==NULL) return;		// 锟斤拷锟斤拷贸锟斤拷.	锟斤拷锟斤拷锟斤拷锟?..	
-	if (WarfieldNo>NW_WARFIELD_COUNT) return;		// 锟斤拷锟铰帮拷 锟竭革拷 锟斤拷锟皆促革拷.. 锟斤拷锟斤拷..	
+	if (WarfieldNo<0||WarfieldNo>=NW_WARFIELD_COUNT) return;		// 锟斤拷锟铰帮拷 锟竭革拷 锟斤拷锟皆促革拷.. 锟斤拷锟斤拷..
 	if (!((Status==1) || (Status==2) || (Status==3) || (Status==4) || (Status==7) || (Status==8) ||  (Status==9) || (Status==10))) return;
 	//if (Warfield[WarfieldNo].GetStatus()==NW_WAR)
 	//{
@@ -7356,7 +7361,7 @@ void cNation::DecLocalWarfieldManCount(int Index,int NationIndex)
 void cNation::SetSealStoneStatus(int NationIndex,int SealNo,int Status, int nHP)			// LTS NEW LOCALWAR
 {
 	if (!isNationManageServer()) return;
-	if (NationIndex<0||NationIndex>3) return;
+	if (NationIndex<0||NationIndex>=NW_NATION_COUNT) return;
 
 	MyLog(0,"SealStone Status NationIndex : %d, SealNo : %d, Status : %d, HP : %d",NationIndex,SealNo,Status,nHP); // 030516 kyo
 
@@ -7391,7 +7396,7 @@ void cNation::SetSealStoneStatus(int NationIndex,int SealNo,int Status, int nHP)
 
 int cNation::CheckAllSealStoneBroked(int NationIndex)							// LTS NEW LOCALWAR
 {
-	if (NationIndex<0||NationIndex>3) return -1;
+	if (NationIndex<0||NationIndex>=NW_NATION_COUNT) return -1;
 
 	for (int i=0;i<9;i++)
 	{
@@ -7454,7 +7459,7 @@ void SendCMD_LOCALWAR_DEFENCE_POINT(unsigned short Point1,unsigned short Point2,
 void cNation::CalcDefencePoint(int NationIndex)			// LTS NEW LOCALWAR
 {
 	int AliveCount=0;
-	if (NationIndex<0||NationIndex>3) return;
+	if (NationIndex<0||NationIndex>=NW_NATION_COUNT) return;
 
 	for (int i=0;i<9;i++)
 	{
@@ -7682,7 +7687,7 @@ void cNation::ClearSealStoneStatus()
 
 int cNation::GetLocalWarDefencePoint(int NationIndex)
 {
-	if (NationIndex<0||NationIndex>3) return 0; 
+	if (NationIndex<0||NationIndex>=NW_NATION_COUNT) return 0;
 	return m_LocalWarDefencePoint[NationIndex];
 }
 
@@ -7700,12 +7705,9 @@ void cNation::GetDayofWeek()
 
 void cNation::CheckAndActive(int Index)
 {
-	if (m_tTimeData.DayofWeek!=m_pStartWarTime[Index].DayofWeek)
-	{
-		return;
-	}
-	
-	if (g_hour!=m_pStartWarTime[Index].DHour)
+	const int date = m_tTimeData.Year * 10000 + m_tTimeData.Month * 100 + m_tTimeData.Day;
+	if (!IsScheduledWarDue(m_pStartWarTime[Index].DayofWeek, m_pStartWarTime[Index].DHour,
+		m_pStartWarTime[Index].LastStartedDate, m_tTimeData.DayofWeek, g_hour, date))
 	{
 		return;
 	}
@@ -7727,6 +7729,7 @@ void cNation::CheckAndActive(int Index)
 	}
 
 	MyLog(0,"WarNo : %d, %d Warfield War Started by DayofWeek And Time",m_WarNo,WarfieldNo);
+	m_pStartWarTime[Index].LastStartedDate = date;
 	m_VoteData[WarfieldNo]=0;
 	SaveWarNo();
 	m_WarNo++; 			//锟斤拷锟斤拷锟饺ｏ拷锟?锟劫操撅拷锟截达拷.
@@ -7743,12 +7746,9 @@ void cNation::CheckAndActive(int Index)
 
 void cNation::NewCheckAndActive(int Index)
 {
-	if (m_tTimeData.DayofWeek!=m_pNewStartWarTime[Index].DayofWeek)
-	{
-		return;
-	}
-	
-	if (g_hour!=m_pNewStartWarTime[Index].DHour)
+	const int date = m_tTimeData.Year * 10000 + m_tTimeData.Month * 100 + m_tTimeData.Day;
+	if (!IsScheduledWarDue(m_pNewStartWarTime[Index].DayofWeek, m_pNewStartWarTime[Index].DHour,
+		m_pNewStartWarTime[Index].LastStartedDate, m_tTimeData.DayofWeek, g_hour, date))
 	{
 		return;
 	}
@@ -7769,10 +7769,12 @@ void cNation::NewCheckAndActive(int Index)
 	}
 
 
+	m_pNewStartWarTime[Index].LastStartedDate = date;
 	MyLog(0,"New Warfield Start Nation War by DB");
 
 	t_packet packet;											// 锟斤拷锟斤拷锟较讹拷锟?锟斤拷哦锟斤拷 锟斤拷锟斤拷锟斤拷.
 
+	SetNewWarfieldStatus(WarfieldNo, NW_WAR);
 	packet.h.header.type=CMD_NWARFIELD_START_WAR;
 	packet.u.NationWar.NewWarStart.WarfieldNo=WarfieldNo;
 	packet.u.NationWar.NewWarStart.LevelMin=MoveLevelMin[WarfieldNo];
@@ -7785,25 +7787,14 @@ void cNation::NewCheckAndActive(int Index)
 
 void cNation::CheckStartWarfieldWar()
 {
-	static int oldHour=0;
-	if (g_hour==oldHour) 
-	{
-		return;
-	}
-
-	GetDayofWeek();
-	oldHour=g_hour;
-
-	int i;
-	for (i=0;i<m_iStartWarTimeCount;i++)			// 锟斤拷锟斤拷锟斤拷锟斤拷汛锟?
-	{
-		CheckAndActive(i);
-	}
-
-	for (i=0;i<m_iNewStartWarTimeCount;i++)
-	{
-		NewCheckAndActive(i);
-	}
+    if (m_dwLastScheduleCheck != 0 && g_curr_time - m_dwLastScheduleCheck < 10)
+    {
+        return;
+    }
+    m_dwLastScheduleCheck = g_curr_time;
+    GetDayofWeek();
+    for (int i = 0; i < m_iStartWarTimeCount; ++i) CheckAndActive(i);
+    for (int i = 0; i < m_iNewStartWarTimeCount; ++i) NewCheckAndActive(i);
 }
 
 cWarfield* cNation::GetWarfield(int WarfieldNo)
@@ -7819,116 +7810,49 @@ void cNation::UpdateStatus()
 	CheckStartWarfieldWar();
 }
 
-bool cNation::LoadWarStartupData()				// LTS NEW_NATION_WAR
-{	//< CSD-030804
-	HSTMT	hStmt=NULL;
-	RETCODE	ret;
-	char	query_stmt[80]={0,};
-	SQLLEN	cbValue;
+static bool LoadWarStartupTimes(int type, LP_START_WAR_TIME& times, int& count)
+{
+    SQLHSTMT statement = SQL_NULL_HSTMT;
+    if (!SQL_SUCCEEDED(SQLAllocStmt(hDBC, &statement))) return false;
+    char query[160];
+    sprintf(query, "SELECT `Index`, DayofWeek, DHour FROM WarStartupTBL WHERE Type=%d ORDER BY DayofWeek, DHour", type);
+    bool valid = SQL_SUCCEEDED(SQLExecDirect(statement, (SQLCHAR*)query, SQL_NTS));
+    vector<StartWarTime> rows;
+    SQLRETURN result = SQL_ERROR;
+    while (valid && SQL_SUCCEEDED(result = SQLFetch(statement)))
+    {
+        int index = 0;
+        StartWarTime time = {};
+        valid = ReadWarStartupRow(statement, index, time.DayofWeek, time.DHour);
+        if (!valid || rows.size() >= 168) { valid = false; break; }
+        time.LastStartedDate = -1;
+        rows.push_back(time);
+        MyLog(LOG_NORMAL, "War startup type=%d index=%d day=%d hour=%d", type, index, time.DayofWeek, time.DHour);
+    }
+    SQLFreeStmt(statement, SQL_DROP);
+    if (!valid || result != SQL_NO_DATA || rows.empty())
+    {
+        MyLog(LOG_NORMAL, "War startup table invalid or empty for type=%d", type);
+        return false;
+    }
+    LP_START_WAR_TIME replacement = new StartWarTime[rows.size()];
+    for (size_t i = 0; i < rows.size(); ++i) replacement[i] = rows[i];
+    SAFE_DELETE_ARRAY(times);
+    times = replacement;
+    count = static_cast<int>(rows.size());
+    return true;
+}
 
-	SQLAllocStmt(hDBC,&hStmt);
-
-	wsprintf(query_stmt,"select count(*) as NumDayHour from WarStartupTBL where Type=0");   
-
-	ret=SQLExecDirect(hStmt,(UCHAR*)query_stmt,SQL_NTS);
- 
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret !=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), WarField Table Query Error!!");
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
-	ret=SQLFetch(hStmt);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret !=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), WarField Table Fetch Error!!");
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
-	ret=SQLGetData(hStmt,1,SQL_C_SLONG,&m_iStartWarTimeCount,sizeof(int),&cbValue);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), Warfield Table SQL Return Error(%d)!!",ret);
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}                
-
-	SQLFreeStmt(hStmt,SQL_DROP);
-
-	m_pStartWarTime=new StartWarTime[m_iStartWarTimeCount];
-
-	SQLAllocStmt(hDBC,&hStmt);
-
-	wsprintf(query_stmt,"select * from WarStartupTBL where Type=0 ORDER BY DayofWeek, DHour");   
-
-	ret=SQLExecDirect(hStmt,(UCHAR*)query_stmt,SQL_NTS);
- 
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret !=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), WarField Table Query Error!!");
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
-	ret=SQLFetch(hStmt);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret !=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), WarField Table Fetch Error!!");
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
-	MyLog(LOG_NORMAL, "<!-- NATIONWAR Startup Information -->");
-
-	int nIndex = 0, index=0;
-
-	while (ret==SQL_SUCCESS)
-	{
-		ret=SQLGetData(hStmt,1,SQL_C_SLONG,&nIndex, 0, &cbValue);
-		if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-		{
-			MyLog(0,"LoadWarStartupData(), Warfield Table SQL Return Error(%d)!!",ret);
-			SQLFreeStmt(hStmt,SQL_DROP);
-			return false;
-		}                
-		ret=SQLGetData(hStmt,3,SQL_C_SLONG,&m_pStartWarTime[index].DayofWeek,sizeof(int),&cbValue);
-		if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-		{
-			MyLog(0,"LoadWarStartupData(), Warfield Table SQL Return Error(%d)!!",ret);
-			SQLFreeStmt(hStmt,SQL_DROP);
-			return false;
-		}                
-		ret=SQLGetData(hStmt,4,SQL_C_SLONG,&m_pStartWarTime[index].DHour,sizeof(int),&cbValue);
-		if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-		{
-			MyLog(0,"LoadWarStartupData(), Warfield Table SQL Return Error(%d)!!",ret);
-			SQLFreeStmt(hStmt,SQL_DROP);
-			return false;
-		}                
-		
-		MyLog(LOG_NORMAL, "[%d]%s(%02d:%02d - %02d:%02d)", 
-			  nIndex,
-			  g_pLogManager->ConvertToDay(m_pStartWarTime[index].DayofWeek),
-			  m_pStartWarTime[index].DHour, 
-			  0, 
-			  (m_pStartWarTime[index].DHour + 2)%24, 
-			  0);
-
-		++index;
-		ret=SQLFetch(hStmt);
-	}
-
-    SQLFreeStmt(hStmt,SQL_DROP);
-	return true;
-}	//> CSD-030804
+bool cNation::LoadWarStartupData()
+{
+    return LoadWarStartupTimes(0, m_pStartWarTime, m_iStartWarTimeCount);
+}
 
 void cNation::LoadWarNo()
 {
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 
 	SQLAllocStmt(hDBC,&hStmt);
@@ -7968,98 +7892,10 @@ void cNation::LoadWarNo()
 	SQLFreeStmt(hStmt,SQL_DROP);
 }
 
-bool cNation::LoadNewWarStartupData()				// LTS NEW_NATION_WAR
-{	//< CSD-030804
-	HSTMT	hStmt=NULL;
-	RETCODE	ret;
-	char	query_stmt[80]={0,};
-	SQLLEN	cbValue;
-
-	SQLAllocStmt(hDBC,&hStmt);
-
-	wsprintf(query_stmt,"select count(*) as NumDayHour from WarStartupTBL where Type=1");   
-
-	ret=SQLExecDirect(hStmt,(UCHAR*)query_stmt,SQL_NTS);
- 
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret !=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), WarField Table Query Error!!");
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
-	ret=SQLFetch(hStmt);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret !=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), WarField Table Fetch Error!!");
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
-	ret=SQLGetData(hStmt,1,SQL_C_SLONG,&m_iNewStartWarTimeCount,sizeof(int),&cbValue);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), Warfield Table SQL Return Error(%d)!!",ret);
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}                
-
-	SQLFreeStmt(hStmt,SQL_DROP);
-
-	m_pNewStartWarTime=new StartWarTime[m_iNewStartWarTimeCount];
-
-	SQLAllocStmt(hDBC,&hStmt);
-
-	wsprintf(query_stmt,"select * from WarStartupTBL where Type=1 ORDER BY DayofWeek, DHour");   
-
-	ret=SQLExecDirect(hStmt,(UCHAR*)query_stmt,SQL_NTS);
- 
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret !=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), WarField Table Query Error!!");
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
-	ret=SQLFetch(hStmt);
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret !=SQL_SUCCESS)
-	{
-		MyLog(0,"LoadWarStartupData(), WarField Table Fetch Error!!");
-		SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
-	MyLog(LOG_NORMAL, "<!-- SNOWYFIELDWAR Startup Information -->");
-
-	int nIndex = 0, index=0;
-
-	while (ret==SQL_SUCCESS)
-	{
-		ret=SQLGetData(hStmt,1,SQL_C_SLONG,&nIndex, 0, &cbValue);
-		ret=SQLGetData(hStmt,3,SQL_C_SLONG,&m_pNewStartWarTime[index].DayofWeek,sizeof(int),&cbValue);
-		ret=SQLGetData(hStmt,4,SQL_C_SLONG,&m_pNewStartWarTime[index].DHour,sizeof(int),&cbValue);
-		if (ret!=SQL_SUCCESS_WITH_INFO && ret!=SQL_SUCCESS)
-		{
-			MyLog(0,"LoadNewWarStartupData(), Warfield Table SQL Return Error(%d)!!",ret);
-			SQLFreeStmt(hStmt,SQL_DROP);
-			return false;
-		}
-
-		MyLog(LOG_NORMAL, "[%d]%s(%02d:%02d - %02d:%02d)", 
-			  nIndex,
-			  g_pLogManager->ConvertToDay(m_pNewStartWarTime[index].DayofWeek),
-			  m_pNewStartWarTime[index].DHour, 
-			  0, 
-			  (m_pNewStartWarTime[index].DHour + 2)%24, 
-			  0);
-
-		index++;
-		ret=SQLFetch(hStmt);
-	}
-
-    SQLFreeStmt(hStmt,SQL_DROP);
-	return true;
-}	//> CSD-030804
+bool cNation::LoadNewWarStartupData()
+{
+    return LoadWarStartupTimes(1, m_pNewStartWarTime, m_iNewStartWarTimeCount);
+}
 
 void cNation::SaveWarNo()
 {
@@ -8074,12 +7910,6 @@ void cNation::SaveWarNo()
 bool cNation::CheckWarStart()
 {
 	bool WarStart=false;
-
-	MyLog(0,"Warfield Status List __________________");
-	MyLog(0,"Warfield : 0, Status : %d",Warfield[0].GetStatus());
-	MyLog(0,"Warfield : 1, Status : %d",Warfield[1].GetStatus());
-	MyLog(0,"Warfield : 2, Status : %d",Warfield[2].GetStatus());
-	MyLog(0,"Warfield Status List End_______________");
 
 	if (Warfield[0].GetStatus()!=NW_PEACE)
 	{
@@ -8556,6 +8386,7 @@ CGuardStone::CGuardStone()
 	m_pGData		=NULL;
 	m_iWarfieldNo	=-1;
 	m_iTeamNo		=-1;
+	Clear();
 }
 
 CGuardStone::~CGuardStone()
@@ -8613,7 +8444,7 @@ int CGuardStone::SetGDataSize()
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
 	SWORD	nClos;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 	int ReturnValue=0;
 
@@ -8657,7 +8488,7 @@ bool CGuardStone::LoadGData()
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
 	SWORD	nClos;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 
 	SQLAllocStmt(hDBC,&hStmt);
@@ -8715,13 +8546,13 @@ bool CGuardStone::LoadData()
 
 	m_iGDataCount=SetGDataSize();
 
-	if (m_iGDataCount==0)
+	if (m_iGDataCount<=0 || m_iGDataCount>DRAGON_MAX_CONNECTIONS)
 	{
 		JustMsg("Class CGuardStone Load Data, SetGDataSize Error : %d,",m_iGDataCount);
 		return false;
 	}
 
-	m_pGData=new GDATA[m_iGDataCount];
+	m_pGData=new GDATA[m_iGDataCount]();
 	if (m_pGData==NULL)
 	{
 		JustMsg("Class CGuardStone Load Data, m_pGData Memory Alloc Error");
@@ -8782,7 +8613,7 @@ bool CGuardStone::MakeGuardStone(const int iIndex, const int iCallType)//030102 
 	return true;
 }
 
-void CGuardStone::FirstMakeNPCPtr()			
+bool CGuardStone::FirstMakeNPCPtr()
 {
 	for (int i=0;i<m_iGDataCount;i++)
 	{
@@ -8790,13 +8621,14 @@ void CGuardStone::FirstMakeNPCPtr()
 		if (m_pGData[i].NPC_ID==-1)
 		{
 			JustMsg("Class CGuardStone,FirstMakeNPCPtr() Error, No More NPC Generation!!");
-			return;
+			return false;
 		}
 		if(!MakeGuardStone(i,0))
 		{
-			return;
+			return false;
 		}
 	}
+	return m_iGDataCount > 0;
 }
 
 void CGuardStone::MakeNPCPtr()
@@ -8902,7 +8734,7 @@ void CGuardStone::MakeDontTable()
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
 	SWORD	nClos;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 
 	SQLAllocStmt(hDBC,&hStmt);
@@ -9054,15 +8886,15 @@ CNewWarfield::~CNewWarfield()
 bool CNewWarfield::InitWarfield()
 {
 	m_iWarfieldNo=g_wMapServerPort-BASE_NEW_WARFIELD_PORT;
-	SetTeamCount(2);
+	if (!SetTeamCount(2)) return false;
 	m_pTeam[0].SetTeamNo(0);
 	m_pTeam[1].SetTeamNo(1);
 	m_pGuard[0].SetWarfieldNo(0);
 	m_pGuard[0].SetTeamNo(0);
-	m_pGuard[0].FirstMakeNPCPtr();
+	if (!m_pGuard[0].FirstMakeNPCPtr()) return false;
 	m_pGuard[1].SetWarfieldNo(0);
 	m_pGuard[1].SetTeamNo(1);
-	m_pGuard[1].FirstMakeNPCPtr();
+	if (!m_pGuard[1].FirstMakeNPCPtr()) return false;
 	LoadTimeData();
 	SetWarfieldStatus(NW_PEACE);
 	if (!LoadWarfieldData())
@@ -9101,7 +8933,7 @@ bool CNewWarfield::LoadWarfieldData()
 {
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 
 	SQLAllocStmt(hDBC,&hStmt);
@@ -9124,19 +8956,13 @@ bool CNewWarfield::LoadWarfieldData()
 		return false;
 	}
 
-	POINT	Team[2];
-	ret=SQLGetData(hStmt,7,SQL_C_SLONG,&Team[0].x,sizeof(DWORD),&cbValue);
-	ret=SQLGetData(hStmt,8,SQL_C_SLONG,&Team[0].y,sizeof(DWORD),&cbValue);
-	ret=SQLGetData(hStmt,9,SQL_C_SLONG,&Team[1].x,sizeof(DWORD),&cbValue);
-	ret=SQLGetData(hStmt,10,SQL_C_SLONG,&Team[1].y,sizeof(DWORD),&cbValue);
-
-	if (ret!=SQL_SUCCESS_WITH_INFO && ret !=SQL_SUCCESS)
-	{
-		JustMsg("CNewWarfield::LoadWarfieldData(),WarField Table Query Error!!");
-	    SQLFreeStmt(hStmt,SQL_DROP);
-		return false;
-	}
-
+    POINT Team[2] = {};
+    if (!ReadWarPoint(hStmt, 7, Team[0]) || !ReadWarPoint(hStmt, 9, Team[1]))
+    {
+        MyLog(0, "New war live point data invalid");
+        SQLFreeStmt(hStmt, SQL_DROP);
+        return false;
+    }
 	m_pTeam[0].SetLivePoint(Team[0]);
 	m_pTeam[1].SetLivePoint(Team[1]);
 
@@ -9149,7 +8975,7 @@ bool CNewWarfield::LoadSMonster(WORD WarfieldNo)
 {
 	HSTMT	hStmt=NULL;
 	RETCODE	ret;
-	char	query_stmt[80]={0,};
+	char	query_stmt[256]={0,};
 	SQLLEN	cbValue;
 	t_WeaponStruct Monster;
 
@@ -9212,7 +9038,7 @@ void CNewWarfield::GuardClear()
 	SAFE_DELETE_ARRAY(m_pGuard);
 }
 
-void CNewWarfield::SetTeamCount(int Count)
+bool CNewWarfield::SetTeamCount(int Count)
 {
 	TeamClear();
 	GuardClear();
@@ -9227,13 +9053,14 @@ void CNewWarfield::SetTeamCount(int Count)
 		m_pTeam[i].SetTeamNo(i);
 		m_pGuard[i].SetWarfieldNo(m_iWarfieldNo);
 		m_pGuard[i].SetTeamNo(i);
-		m_pGuard[i].LoadData();
+		if (!m_pGuard[i].LoadData()) return false;
 	}
+	return true;
 }
 
 LPTEAM CNewWarfield::GetTeam(int TeamNo)
 {
-	if (TeamNo<0&&TeamNo>=m_iTeamCount)
+	if (TeamNo<0||TeamNo>=m_iTeamCount)
 		return NULL;
 
 	return &m_pTeam[TeamNo];
@@ -9241,7 +9068,7 @@ LPTEAM CNewWarfield::GetTeam(int TeamNo)
 
 LPGUARDSTONE CNewWarfield::GetGuard(int TeamNo)
 {
-	if (TeamNo<0&&TeamNo>=m_iTeamCount)
+	if (TeamNo<0||TeamNo>=m_iTeamCount)
 		return NULL;
 
 	return &m_pGuard[TeamNo];

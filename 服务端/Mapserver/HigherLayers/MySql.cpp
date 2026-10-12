@@ -22,6 +22,7 @@
 #include "ArenaManager.h"
 #include "RegenManager.h"
 #include "WarStartInfo.h"
+#include "WarStartupReader.h"
 #include "StepMigration.h"
 #include "NationSys.h"
 #include "..\\..\\Library\\Shared\\MySqlOdbcConnection.h"
@@ -4205,75 +4206,43 @@ bool LoadHuntPlaceInfo()
 }	//> CSD-030522
 
 bool LoadWarStartInfo()
-{   //< CSD-030804
-	if (g_pNation == NULL)
-	{
-		return false;
-	}
+{
+    if (g_pNation == NULL) return false;
+    SQLHSTMT statement = SQL_NULL_HSTMT;
+    if (!SQL_SUCCEEDED(SQLAllocStmt(hDBC, &statement))) return false;
+    const char* query = "SELECT `Index`, DayofWeek, DHour FROM WarStartUpTBL WHERE Type=2 ORDER BY DayofWeek, DHour";
+    bool valid = SQL_SUCCEEDED(SQLExecDirect(statement, (SQLCHAR*)query, SQL_NTS));
+    CWarStartInfo* info = CWarStartInfo::CreateWarStartInfo();
+    int count = 0;
+    SQLRETURN result = SQL_ERROR;
+    while (valid && SQL_SUCCEEDED(result = SQLFetch(statement)))
+    {
+        int index = 0, day = 0, hour = 0;
+        valid = ReadWarStartupRow(statement, index, day, hour);
+        if (!valid || count >= 168) { valid = false; break; }
+        START_UP_INFO* time = new START_UP_INFO;
+        time->idIndex = index;
+        time->nApplyDay = day;
+        time->nStartHour = hour;
+        time->nStartMinute = 0;
+        time->nEndHour = (hour + 2) % 24;
+        time->nEndMinute = 0;
+        info->Register(time);
+        ++count;
+        MyLog(LOG_NORMAL, "LOCALWAR startup index=%d day=%d hour=%d", index, day, hour);
+    }
+    SQLFreeStmt(statement, SQL_DROP);
+    if (!valid || result != SQL_NO_DATA || count == 0)
+    {
+        MyLog(LOG_NORMAL, "LOCALWAR startup table invalid or empty");
+        delete info;
+        return false;
+    }
+    delete g_pNation->GetWarStartInfo();
+    g_pNation->SetWarStartInfo(info);
+    return true;
+}
 
-	char szQuerry[512];
-	sprintf(szQuerry, "SELECT * FROM WarStartUpTBL WHERE Type = 2 ORDER BY DayofWeek");
-
-	HSTMT hStmt = NULL;
-	SQLAllocStmt(hDBC, &hStmt);
-
-	RETCODE	retCode = SQLExecDirect(hStmt, (UCHAR*)szQuerry, SQL_NTS);
-	
-	if (retCode != SQL_SUCCESS_WITH_INFO && retCode !=  SQL_SUCCESS) 
-	{
-		MyLog(LOG_NORMAL, "WarStartUpTBL : ExecDirect Error");
-		SQLFreeStmt(hStmt, SQL_DROP);
-		return false;
-	}
-	
-	SQLLEN cbValue;
-	int nIndex = 0, nTemp = 0;
-
-	CWarStartInfo* pWarStartInfo = CWarStartInfo::CreateWarStartInfo();
-
-	if (pWarStartInfo == NULL)
-	{
-		SQLFreeStmt(hStmt, SQL_DROP);
-		return false;
-	}
-
-	MyLog(LOG_NORMAL, "<!-- LOCALWAR Startup Information -->");
-	
-	while ((retCode = SQLFetch(hStmt)) == SQL_SUCCESS)
-	{
-		START_UP_INFO* pTime = new START_UP_INFO;
-		
-		if (pTime == NULL)
-		{
-			SQLFreeStmt(hStmt, SQL_DROP);
-			return false;
-		}
-
-		SQLGetData(hStmt, 1, SQL_C_SLONG, &nIndex, 0, &cbValue);
-		pTime->idIndex = nIndex;
-		SQLGetData(hStmt, 3, SQL_C_SLONG, &nTemp, 0, &cbValue);
-		pTime->nApplyDay = nTemp;  
-		SQLGetData(hStmt, 4, SQL_C_SLONG, &nTemp, 0, &cbValue);
-		pTime->nStartHour = nTemp;
-		pTime->nStartMinute = 0;
-		pTime->nEndHour = (nTemp + 2)%24;
-		pTime->nEndMinute = 0;
-
-		MyLog(LOG_NORMAL, "[%d]%s(%02d:%02d - %02d:%02d)", 
-			  nIndex,
-			  g_pLogManager->ConvertToDay(pTime->nApplyDay),
-			  pTime->nStartHour,
-			  pTime->nStartMinute,
-			  pTime->nEndHour,
-			  pTime->nEndMinute);
-		pWarStartInfo->Register(pTime);
-	}
-
-	g_pNation->SetWarStartInfo(pWarStartInfo);
-	
-	SQLFreeStmt(hStmt, SQL_DROP);
-	return true;
-}	//> CSD-030804
 
 // 031009 CI YGI
 int GetItemLimitCount_SQL( WORD port, DWORD *pLimit )

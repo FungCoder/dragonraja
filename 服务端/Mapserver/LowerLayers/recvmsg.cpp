@@ -18,6 +18,7 @@
 #include "..\HigherLayers\UserManager.h"
 #include "../HigherLayers/KickOffAll.h"		// BBD 040110
 
+extern void SetLocalWarState(int active);
 extern int g_LocalWarBegin;		// 011215 LTS
 extern CKickOffAll g_KickMgr;		// BBD 040110
 // 011205 KBS
@@ -514,7 +515,7 @@ void __stdcall ReceivedMsgFromServer(DWORD dwConnectionIndex, char* pMsg,DWORD d
 					t_packet *rpacket = (t_packet*)(pMsg+1);
 					g_pUserManager->SendPacket(rpacket);
 					SealStoneBreakable = CMD_STEALSTONE_BREAKABLE;	
-					g_LocalWarBegin=rpacket->u.LocalWar.CommonDataC.Data;	// 011215 LTS
+					SetLocalWarState(rpacket->u.LocalWar.CommonDataC.Data);	// 011215 LTS
 					// MyLog(0,"Local War Status : %d",g_LocalWarBegin);
 					break;										
 				}	//> CSD-CN-031213
@@ -523,7 +524,7 @@ void __stdcall ReceivedMsgFromServer(DWORD dwConnectionIndex, char* pMsg,DWORD d
 					t_packet *rpacket = (t_packet*)(pMsg+1);
 					g_pUserManager->SendPacket(rpacket);
 					SealStoneBreakable = CMD_STEALSTONE_NON_BREAKABLE_PEACE;	
-					g_LocalWarBegin=rpacket->u.LocalWar.CommonDataC.Data;	// 011215 LTS
+					SetLocalWarState(rpacket->u.LocalWar.CommonDataC.Data);	// 011215 LTS
 					// MyLog(0,"Local War Status : %d",g_LocalWarBegin);
 					break;
 				}	//> CSD-CN-031213
@@ -532,7 +533,7 @@ void __stdcall ReceivedMsgFromServer(DWORD dwConnectionIndex, char* pMsg,DWORD d
 					t_packet *rpacket = (t_packet*)(pMsg+1);
 					g_pUserManager->SendPacket(rpacket);
 					SealStoneBreakable = CMD_STEALSTONE_NON_BREAKABLE;	
-					g_LocalWarBegin=rpacket->u.LocalWar.CommonDataC.Data;	// 011215 LTS
+					SetLocalWarState(rpacket->u.LocalWar.CommonDataC.Data);	// 011215 LTS
 					// MyLog(0,"Local War Status : %d",g_LocalWarBegin);
 					break;									
 				}	//> CSD-CN-031213

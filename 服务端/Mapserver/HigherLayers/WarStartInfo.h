@@ -32,14 +32,11 @@ public:
 	void Register(START_UP_INFO* pTime);
 	void Execute();
 
-protected:
-	bool IsCheckIn(int nIndex) const;
-	bool IsCheckOut(int nIndex) const;
-	
+
 public:
 	DWORD GetRemainTime() const
 	{
-		return 2*60*60;
+		return m_dwRemainTime;
 	}
 
 	bool IsActive() const 

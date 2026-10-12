@@ -219,4 +219,7 @@ extern void SaveChangeClassStep(CHARLIST* pTarget, int nPrevStep, int nNextStep)
 extern void SaveChangeClassQuest(CHARLIST* pTarget, const char* pMsg, int nQuestNo, int nQcount, int nStart); // CSD-TW-030618
 extern void SaveChangeFame( CHARLIST *ch, int old_fame, int new_fame, eLF_TYPE type );
 extern void SaveScriptLog( CHARLIST *ch, const int nQuestNo, const int nQuestStep, const char* msg); // 030826 kyo
+void SetLocalWarState(int active);
+void SyncLocalWarStateToMap(WORD port);
+void SyncLocalWarStateToConnectedMaps();
 #endif 

@@ -4,6 +4,7 @@
 
 #include "..\stdafx.h"
 #include "WarStartInfo.h"
+#include "WarSchedule.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // Construction/Destruction
@@ -34,66 +35,20 @@ void CWarStartInfo::Register(START_UP_INFO* pTime)
 
 void CWarStartInfo::Execute()
 {
-	if (m_bActive)
-	{
-		++m_dwRemainTime;
-
-		if (IsCheckOut(m_nIndex))
-		{
-			m_bActive = false;
-		}
-	}
-	else
-	{
-		for (int i = 0; i < m_vtTime.size(); ++i)
-		{
-			if (IsCheckIn(i))
-			{
-				m_nIndex = i;
-				m_bActive = true;
-				return;
-			}
-		}
-
-		m_dwRemainTime = 0;
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Protected Method
-///////////////////////////////////////////////////////////////////////////////
-
-bool CWarStartInfo::IsCheckIn(int nIndex) const
-{
-	if (g_wday != m_vtTime[nIndex]->nApplyDay)
-	{
-		return false;
-	}
-	
-	if (g_hour != m_vtTime[nIndex]->nStartHour)
-	{
-		return false;
-	}
-	
-	if (g_min != m_vtTime[nIndex]->nStartMinute)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-bool CWarStartInfo::IsCheckOut(int nIndex) const
-{
-	if (g_hour != m_vtTime[nIndex]->nEndHour)
-	{
-		return false;
-	}
-	
-	if (g_min != m_vtTime[nIndex]->nEndMinute)
-	{
-		return false;
-	}
-
-	return true;
+    m_dwRemainTime = 0;
+    m_nIndex = -1;
+    m_bActive = false;
+    for (size_t i = 0; i < m_vtTime.size(); ++i)
+    {
+        const START_UP_INFO& time = *m_vtTime[i];
+        const DWORD remaining = GetWeeklyWarRemainingSeconds(
+            time.nApplyDay, time.nStartHour, time.nStartMinute,
+            time.nEndHour, time.nEndMinute, g_wday, g_hour, g_min, g_sec);
+        if (remaining > m_dwRemainTime)
+        {
+            m_dwRemainTime = remaining;
+            m_nIndex = static_cast<int>(i);
+            m_bActive = true;
+        }
+    }
 }

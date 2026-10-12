@@ -440,19 +440,20 @@ void CheckSealStoneBlock( void )
 	}
 
 	static DWORD t;
-	static int oldh;
+	static int oldh = -1;
 	static int nCount;
 	
 	if (g_curr_time	- t > 60 || oldh != g_hour) // LTS LOCALWAR
 	{
 		CWarStartInfo* pWarStartInfo = g_pNation->GetWarStartInfo();
-
+		const bool wasActive = pWarStartInfo != NULL && pWarStartInfo->IsActive();
 		if (pWarStartInfo != NULL)
 		{
 			pWarStartInfo->Execute();
 		}
+		const bool isActive = pWarStartInfo != NULL && pWarStartInfo->IsActive();
 
-		if (++nCount >= 10 || oldh != g_hour)
+		if (++nCount >= 10 || oldh != g_hour || wasActive != isActive)
 		{
 			nCount = 0;
 			SendSealStoneBlock();

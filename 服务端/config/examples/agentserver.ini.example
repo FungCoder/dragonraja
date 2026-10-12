@@ -7,9 +7,9 @@ BETA_SERVER=1
 [server_info]
 path=D:\DragonRajaServer\resources
 own_server_ip_for_server=127.0.0.1
-own_server_port_for_server=7001
+own_server_port_for_server=7101
 own_server_ip_for_user=127.0.0.1
-own_server_port_for_user=7000
+own_server_port_for_user=7100
 primary_proxy_server_ip=127.0.0.1
 primary_proxy_server_port=3000
 
@@ -25,7 +25,7 @@ default_max_user_can_login=1500
 num_of_external_servers=0
 
 [agent_info]
-port=7000
+port=7100
 max_user_num=1500
 
 [PayInfo]

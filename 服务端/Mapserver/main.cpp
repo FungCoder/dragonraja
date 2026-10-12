@@ -102,6 +102,8 @@ void CleanUpConnectionList(void);
 
 // 010904 LTS
 extern bool InitNationSystem();
+extern bool isNationManageServer();
+extern void SyncLocalWarStateToConnectedMaps();
 extern bool InitLocalWarSystem();		// LTS LOCALWAR
 extern bool InitEventLocalWarSystem();		// 020115 LTS
 extern int InitMapServerConfigINI();		// LTS NEW LOCALWAR
@@ -611,11 +613,17 @@ int InitDRMapServerDatas(void)
 		return 0;
 	}
 
-	if (LoadWarStartInfo())
+	if (isNationManageServer() && !LoadWarStartInfo())
+	{
+		Error("******* FAILED !! :: Local war startup data invalid!\n");
+		return 0;
+	}
+	if (isNationManageServer())
 	{	//< CSD-030723
 		MyLog(LOG_NORMAL, "'WarStartTBL' Table initializing ...............   OK !");
 	}	//> CSD-030723
 	
+	SyncLocalWarStateToConnectedMaps();
 	InitRefreshMenu();		// 020620 YGI
 	InitNationRelation();	// 001209 KHS ???????? ???? ????.
 	LoadGetGodTable();		// 0605 YGI	???? ????? ????????

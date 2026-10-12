@@ -413,6 +413,9 @@
     <ClInclude Include="HigherLayers\ThunderCombat.h" />
     <ClInclude Include="HigherLayers\UserManager.h" />
     <ClInclude Include="HigherLayers\WarStartInfo.h" />
+    <ClInclude Include="HigherLayers\WarSchedule.h" />
+    <ClInclude Include="HigherLayers\WarStartupReader.h" />
+    <ClInclude Include="HigherLayers\LocalWarRules.h" />
     <ClInclude Include="HigherLayers\Weather.h" />
     <ClInclude Include="HigherLayers\WeatherControl.h" />
     <ClInclude Include="HigherLayers\WindCombat.h" />

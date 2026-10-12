@@ -276,6 +276,7 @@ void CServerTable::OnChangeServerStatus( LP_SERVER_DATA pServerData )
 
 #include "..\HigherLayers\DefaultHeader.h"
 #include "..\HigherLayers\Dr_Network.h"
+extern void SyncLocalWarStateToMap(WORD port);
 
 void CServerTable::OnConnectTypedServer( LP_SERVER_DATA pServerData )
 {
@@ -302,6 +303,7 @@ void CServerTable::OnConnectTypedServer( LP_SERVER_DATA pServerData )
 		break;
 	case SERVER_TYPE_MAP:
 		{
+			SyncLocalWarStateToMap(pServerData->wPort);
 		}
 		break;
 	default:
