@@ -16,7 +16,7 @@ int main()
 {
     using namespace DragonClientBattle;
     const unsigned clientCommands[] = {CMD_ATTACK, CMD_THROW_ATTACK,
-        CMD_THROW_RESULT, CMD_EFFECT_RESULT, CMD_MAGIC_SELECT, CMD_MAGIC_CASTING,
+        CMD_EFFECT_RESULT, CMD_MAGIC_SELECT, CMD_MAGIC_CASTING,
         CMD_MAGIC_EXECUTE, CMD_MAGIC_RESULT, CMD_MAGIC_RESULT_D, CMD_COMBAT_CLEAR,
         CMD_COMBAT_OBTAIN, CMD_COMBAT_REQUEST, CMD_COMBAT_LEARN, CMD_COMBAT_SELECT,
         CMD_COMBAT_ATTACK, CMD_COMBAT_RESULT, CMD_COMBAT_RESET,
@@ -35,7 +35,7 @@ int main()
         CMD_COMBAT_RESULT_H, CMD_COMBAT_RESULT_M, CMD_COMBAT_RESULT_S,
         CMD_COMBAT_RESULT_T, CMD_COMBAT_INIT, CMD_BATTLE_DAMAGE, CMD_BATTLE_MESSAMGE,
         DragonCombatShot::AckCommand, DragonCombatShot::IssuedCommand,
-        DragonCombatShot::BurstIssuedCommand};
+        DragonCombatShot::BurstIssuedCommand, DragonCombatShot::ArrowIssuedCommand, CMD_THROW_RESULT};
     for (unsigned command : serverCommands)
     {
         Require(!IsPayloadAllowed(command, 0), "server command with empty payload");

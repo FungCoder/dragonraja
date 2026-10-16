@@ -2744,6 +2744,7 @@ int HandleCommand( t_connection *c )
 			}
         case DragonCombatShot::AckCommand:
         case DragonCombatShot::IssuedCommand:
+        case DragonCombatShot::ArrowIssuedCommand:
         case DragonCombatShot::BurstIssuedCommand:
             CombatShotReceive(packet.h.header.type, packet.u.data, packet.h.header.size);
             break;

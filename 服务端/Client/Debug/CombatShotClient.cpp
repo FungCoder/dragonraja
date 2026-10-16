@@ -17,6 +17,8 @@ static_assert(CONVERTING_ARMOR == DragonCombatShot::ConvertingArmorSkill, "Conve
 static_assert(SHARK_MISSILE == DragonCombatShot::SharkMissileSkill, "Shark-missile canonical ID");
 static_assert(FIRE_EXTREME == DragonCombatShot::FireExtremeSkill, "Fire-extreme canonical ID");
 static_assert(ICE_EXTREME == DragonCombatShot::IceExtremeSkill, "Ice-extreme canonical ID");
+static_assert(FIRE_ARROW == DragonCombatShot::FireArrowMagic &&
+    ICE_ARROW == DragonCombatShot::IceArrowMagic, "Magic-arrow canonical IDs");
 
 namespace
 {
@@ -76,8 +78,8 @@ bool CombatShotReady()
 }
 bool CombatShotNeedsHandshake(int activeCombat, int bowType)
 {
-    return DragonCombatShot::IsSkillShot(activeCombat) ||
-        (activeCombat == 0 && bowType != 1 && bowType != 2);
+    (void)bowType;
+    return DragonCombatShot::IsSkillShot(activeCombat) || activeCombat == 0;
 }
 void CombatShotReceive(unsigned command, const void* data, size_t size)
 {
@@ -107,9 +109,17 @@ void CombatShotReceive(unsigned command, const void* data, size_t size)
         }
         return;
     }
-    if (command != IssuedCommand || size != sizeof(Issued) || !CombatShotReady()) return;
+    unsigned magic = 0;
     Issued shot = {};
-    memcpy(&shot, data, sizeof(shot));
+    if (command == ArrowIssuedCommand && size == sizeof(ArrowIssued))
+    {
+        ArrowIssued arrow = {};
+        memcpy(&arrow, data, sizeof(arrow));
+        if (!IsMagicArrow(arrow.magic)) return;
+        shot = arrow.shot; magic = arrow.magic;
+    }
+    else if (command == IssuedCommand && size == sizeof(Issued)) memcpy(&shot, data, sizeof(shot));
+    else return;
     if (!state.CanAccept(shot, Hero->id)) return;
     t_server_throw_attack packet = {};
     packet.idCaster = shot.caster;
@@ -117,12 +127,15 @@ void CombatShotReceive(unsigned command, const void* data, size_t size)
     packet.nX = shot.x;
     packet.nY = shot.y;
     packet.nCombat = 0;
+    Hero->bow_Type = magic == FireArrowMagic ? 1 : (magic == IceArrowMagic ? 2 : 0);
     g_mgrBattle.RecvThrowAttack(&packet);
-    state.Record(shot, g_ClientTime);
+    if (magic) Hero->excute_MagicNum = magic;
+    state.Record(shot, g_ClientTime, magic);
 }
 uint64_t CombatShotTake(unsigned caster, unsigned target, int effect)
 {
     if (!Hero || caster != Hero->id || !CombatShotReady()) return 0;
+    if (DragonCombatShot::IsMagicArrow(effect)) return state.Take(target, g_ClientTime, unsigned(effect));
     switch (effect)
     {
     case THROW_ARROW: case THROW_KNIFE: case THROW_FIRE_ARROW: case THROW_ICE_KNIFE:

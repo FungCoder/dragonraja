@@ -235,7 +235,7 @@ void BeginPlayerMagicPreparation(int connection, unsigned char skill,
 {
     if (!IsPlayerSession(connection)) return;
     s_preparation[connection].Begin(GetPlayerSessionIdentity(connection), skill,
-        timeGetTime(), ready_ms);
+        GetTickCount64(), ready_ms);
 }
 
 bool CanExecutePlayerMagic(int connection, unsigned char skill)
@@ -247,7 +247,19 @@ bool CanExecutePlayerMagic(int connection, unsigned char skill)
     }
     return connections[connection].chrlst.GetMagic() == skill &&
         s_preparation[connection].CanExecute(GetPlayerSessionIdentity(connection), skill,
-            timeGetTime());
+            GetTickCount64());
+}
+
+bool CanExecutePlayerMagicArrow(int connection, unsigned char skill)
+{
+    if (!IsPlayerSession(connection) ||
+        (skill != FIRE_ARROW && skill != ICE_ARROW) ||
+        connections[connection].chrlst.GetMagic() != skill ||
+        Magic_Ref[skill].cast_Continue < 0) return false;
+    // Match the client's activation window, measured after actual preparation.
+    const uint64_t activeMs = uint64_t(Magic_Ref[skill].cast_Continue / 6) * 1000;
+    return s_preparation[connection].CanExecuteWithin(GetPlayerSessionIdentity(connection),
+        skill, GetTickCount64(), activeMs);
 }
 
 void RecvAutoPlayQuery(int connection, const void* payload, int payload_size)

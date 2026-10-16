@@ -618,7 +618,7 @@ void CBattleMgr::SendMagicResultWithAction(WORD wdEffect, LPCHARACTER pCaster, W
         return;
     }
 	
-    if (pCaster == Hero && DragonCombatShot::IsSkillShot(wdEffect)) return;
+    if (pCaster == Hero && (DragonCombatShot::IsSkillShot(wdEffect) || DragonCombatShot::IsMagicArrow(wdEffect))) return;
 	if (pCaster == Hero)
 	{
 		switch (wdEffect)

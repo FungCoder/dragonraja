@@ -6,7 +6,6 @@
 #include "../../Library/Shared/CombatShotLedger.h"
 #include <map>
 #include <mutex>
-#include <cstddef>
 
 static_assert(MULTIPLE_FIRE == DragonCombatShot::MultiFireSkill, "Multi-fire canonical ID");
 static_assert(ICING_BLAST == DragonCombatShot::IcingBlastSkill, "Icing-blast canonical ID");
@@ -15,6 +14,8 @@ static_assert(CONVERTING_ARMOR == DragonCombatShot::ConvertingArmorSkill, "Conve
 static_assert(SHARK_MISSILE == DragonCombatShot::SharkMissileSkill, "Shark-missile canonical ID");
 static_assert(FIRE_EXTREME == DragonCombatShot::FireExtremeSkill, "Fire-extreme canonical ID");
 static_assert(ICE_EXTREME == DragonCombatShot::IceExtremeSkill, "Ice-extreme canonical ID");
+static_assert(FIRE_ARROW == DragonCombatShot::FireArrowMagic &&
+    ICE_ARROW == DragonCombatShot::IceArrowMagic, "Magic-arrow canonical IDs");
 
 namespace
 {
@@ -24,7 +25,6 @@ using DragonGameplay::IsPlayerSession;
 using DragonGameplay::GetPlayerSessionIdentity;
 std::map<int, CombatShotLedger> ledgers;
 std::map<int, DWORD> notices, helloTimes;
-std::map<int, CombatShotLedger> legacyReleases;
 uint64_t nextAction = 0;
 std::mutex ledgerMutex;
 
@@ -63,7 +63,6 @@ void ResetCombatShotSession(int connection)
     ledgers.erase(connection);
     notices.erase(connection);
     helloTimes.erase(connection);
-    legacyReleases.erase(connection);
 }
 
 void CancelCombatShots(int connection)
@@ -71,7 +70,6 @@ void CancelCombatShots(int connection)
     const std::lock_guard<std::mutex> lock(ledgerMutex);
     const auto found = ledgers.find(connection);
     if (found != ledgers.end()) found->second.ClearActions();
-    legacyReleases.erase(connection);
 }
 
 void RecvCombatShotHello(int connection, const void* data, int size)
@@ -95,14 +93,6 @@ void RecvCombatShotHello(int connection, const void* data, int size)
     QueuePacket(connections, connection, &packet, 1);
 }
 
-bool UsesVersionedThrow(int connection)
-{
-    if (!IsPlayerSession(connection)) return false;
-    const CHARLIST& actor = connections[connection].chrlst;
-    return DragonCombatShot::IsSkillShot(actor.GetActiveCombat()) ||
-        (actor.GetActiveCombat() == 0 && actor.GetMagic() != FIRE_ARROW && actor.GetMagic() != ICE_ARROW);
-}
-
 bool IssueCombatShot(int connection, unsigned short target, short x, short y)
 {
     using namespace DragonCombatShot;
@@ -123,6 +113,11 @@ bool IssueCombatShot(int connection, unsigned short target, short x, short y)
         {
             // Never wrap/reuse an action ID during this server process.
             if (nextAction > UINT64_MAX - count) return false;
+            if (!found->second.HasCapacity(owner, GetTickCount64())) return false;
+            // Capacity and payment are serialized with issue/consume. No mana is
+            // spent for a full ledger, and no unpaid action becomes visible.
+            if (skill == 0 && !g_pBattleManager->PrepareMagicArrowShot(
+                connection, target, x, y, action.magic)) return false;
             action.id = nextAction + 1;
             nextAction += count;
             if (!found->second.Issue(owner, action, GetTickCount64())) return false;
@@ -130,7 +125,13 @@ bool IssueCombatShot(int connection, unsigned short target, short x, short y)
     }
     if (!nonce) { UpgradeMessage(connection); return false; }
     t_packet packet = {};
-    if (skill == 0)
+    if (action.magic)
+    {
+        const ArrowIssued issued = {{Version, nonce, action.id,
+            uint16_t(connection), target, x, y, LifetimeMs}, action.magic};
+        DragonCombatShot::WritePacket(packet, ArrowIssuedCommand, issued);
+    }
+    else if (skill == 0)
     {
         const Issued issued = {Version, nonce, action.id,
             uint16_t(connection), target, x, y, LifetimeMs};
@@ -169,6 +170,14 @@ void SettleCombatShot(int connection, const PreparationIdentity& owner,
     const int64_t dx = int64_t(target->X) - action.launch_x;
     const int64_t dy = int64_t(target->Y) - action.launch_y;
     if (dx > REM_AREA_X || dx < -REM_AREA_X || dy > REM_AREA_Y || dy < -REM_AREA_Y) return;
+    if (action.magic)
+    {
+        t_client_magic_result result = {};
+        result.nMagic = BYTE(action.magic); result.idTarget = hitTarget;
+        result.nX = hitX; result.nY = hitY; result.bWanted = wanted;
+        g_pBattleManager->RecvAuthorizedMagicArrowResult(connection, &result);
+        return;
+    }
     t_client_throw_result result = {};
     result.idTarget = hitTarget;
     result.nX = hitX;
@@ -195,47 +204,4 @@ void RecvCombatShotHit(int connection, const void* data, int size)
             hit.action, GetTickCount64(), action)) return;
     }
     SettleCombatShot(connection, owner, action, hit.target, hit.x, hit.y, hit.wanted != 0);
-}
-
-bool RegisterLegacyThrowRelease(int connection)
-{
-    if (!IsPlayerSession(connection)) return false;
-    const CHARLIST& actor = connections[connection].chrlst;
-    // The remaining unversioned physical callback is the magic-arrow fallback.
-    if (actor.GetActiveCombat() != 0 ||
-        (actor.GetMagic() != FIRE_ARROW && actor.GetMagic() != ICE_ARROW)) return false;
-    DragonGameplay::ShotAction action = MakeShotAction(actor, 1);
-    const std::lock_guard<std::mutex> lock(ledgerMutex);
-    if (nextAction == UINT64_MAX) return false;
-    action.id = ++nextAction;
-    const PreparationIdentity owner = GetPlayerSessionIdentity(connection);
-    CombatShotLedger& ledger = legacyReleases[connection];
-    ledger.Handshake(owner, 1);
-    return ledger.Issue(owner, action, GetTickCount64());
-}
-
-bool AllowLegacyThrowResult(int connection)
-{
-    if (!IsPlayerSession(connection)) return false;
-    const std::lock_guard<std::mutex> lock(ledgerMutex);
-    const auto found = legacyReleases.find(connection);
-    return found != legacyReleases.end() &&
-        found->second.OldestPending(GetPlayerSessionIdentity(connection), GetTickCount64()) != 0;
-}
-
-void RecvLegacyCombatShotHit(int connection, const void* data, int size)
-{
-    if (!IsPlayerSession(connection) || !data || size != sizeof(t_client_throw_result)) return;
-    if (static_cast<const unsigned char*>(data)[offsetof(t_client_throw_result, bWanted)] > 1) return;
-    t_client_throw_result hit = {};
-    memcpy(&hit, data, sizeof(hit));
-    const PreparationIdentity owner = GetPlayerSessionIdentity(connection);
-    DragonGameplay::ShotAction action;
-    {
-        const std::lock_guard<std::mutex> lock(ledgerMutex);
-        const auto found = legacyReleases.find(connection);
-        if (found == legacyReleases.end() ||
-            !found->second.ConsumeOldest(owner, GetTickCount64(), action)) return;
-    }
-    SettleCombatShot(connection, owner, action, hit.idTarget, hit.nX, hit.nY, hit.bWanted);
 }

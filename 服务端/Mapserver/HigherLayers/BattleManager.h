@@ -40,6 +40,8 @@ public:
 	void RecvThrowAttack(WORD idCaster, t_client_throw_attack* pPacket);
 	void RecvThrowResult(WORD idCaster, t_client_throw_result* pPacket);
 	void RecvAuthorizedThrowResult(WORD idCaster, t_client_throw_result* pPacket, int attackKind);
+    bool PrepareMagicArrowShot(WORD idCaster, WORD idTarget, int x, int y, unsigned short& magic);
+    void RecvAuthorizedMagicArrowResult(WORD idCaster, t_client_magic_result* pPacket);
 
 	void RecvEffectResult(WORD idCaster, t_client_effect_result* pPacket); // CSD-031007
 	
@@ -75,6 +77,8 @@ protected:
 	bool FilterCombat(BYTE nCombat, CHARLIST* pCaster, CHARLIST* pTarget, int nX, int nY);
 	bool FilterCombat(BYTE nCombat, CHARLIST* pCaster, CHARLIST* pTarget);
 	bool FilterResult(CHARLIST* pCaster, CHARLIST* pTarget);
+    bool FilterPlayerMagicResult(BYTE magic, CHARLIST* pCaster, CHARLIST* pTarget);
+    void RecvMagicResultImpl(WORD idCaster, t_client_magic_result* pPacket, bool authorizedArrow);
 	bool FilterResult(BYTE nMagic, CHARLIST* pCaster, CHARLIST* pTarget);
 	
 protected:

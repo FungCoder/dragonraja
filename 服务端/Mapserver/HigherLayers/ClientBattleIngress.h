@@ -20,10 +20,11 @@ inline int ExpectedPayloadSize(unsigned command)
     case DragonCombatShot::HitCommand: return sizeof(DragonCombatShot::Hit);
     case DragonCombatShot::AckCommand:
     case DragonCombatShot::IssuedCommand:
+    case DragonCombatShot::ArrowIssuedCommand:
     case DragonCombatShot::BurstIssuedCommand: return ServerOnly;
     case CMD_ATTACK: return sizeof(t_player_attack);
     case CMD_THROW_ATTACK: return sizeof(t_client_throw_attack);
-    case CMD_THROW_RESULT: return sizeof(t_client_throw_result);
+    case CMD_THROW_RESULT: return ServerOnly;
     // 7615 is also named CMD_COMBAT_RESULT_C. Preserve its client effect use.
     case CMD_EFFECT_RESULT: return sizeof(t_client_effect_result);
     case CMD_MAGIC_SELECT: return sizeof(t_client_magic_select);

@@ -9,5 +9,6 @@ void ResetAutoPlaySession(int connection);
 void BeginPlayerMagicPreparation(int connection, unsigned char skill,
     unsigned short ready_ms);
 bool CanExecutePlayerMagic(int connection, unsigned char skill);
+bool CanExecutePlayerMagicArrow(int connection, unsigned char skill);
 
 #endif

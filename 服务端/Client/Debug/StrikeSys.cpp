@@ -18,6 +18,7 @@ namespace
 void InsertIssuedShot(LPCHARACTER caster, LPCHARACTER target, int effect, int x, int y)
 {
     const uint64_t action = CombatShotTake(caster->id, target->id, effect);
+    if (caster == Hero && !action) return;
     ::InsertMagicWithAction(caster, target, effect, 0, 0, 0, x, y, false, 0, false, 0, action);
 }
 }
@@ -270,47 +271,13 @@ void CStrikeSys::Shoot(LPCHARACTER pCaster, LPCHARACTER pTarget)
 			break;
 		}
 	case 1:
-		{
-			if ((pCaster != Hero) || (pCaster==Hero && (SCharacterData.nCharacterMP >= g_lpMT[FIRE_ARROW].exhaust_MP)))
-			{
-				::InsertMagic(pCaster, pTarget, FIRE_ARROW, 0, 0, 0, nX, nY);
-				
-				if (pCaster == Hero)
-				{	//< CSD-TW-030606
-					SCharacterData.nCharacterMP -= g_lpMT[FIRE_ARROW].exhaust_MP;
-					Hero->mp -= g_lpMT[FIRE_ARROW].exhaust_MP;
-					g_mgrBattle.SendMagicExecute(FIRE_ARROW, pTarget, nX, nY);
-				}	//> CSD-TW-030606
-			}
-			else
-			{
-				pCaster->bow_Type = 0;
-				InsertIssuedShot(pCaster, pTarget, THROW_ARROW, nX, nY);
-			}
-			
-			break;
-		}
 	case 2:
-		{
-			if ((pCaster != Hero) || (pCaster==Hero && (SCharacterData.nCharacterMP >= g_lpMT[ICE_ARROW].exhaust_MP)))
-			{
-				::InsertMagic(pCaster, pTarget, ICE_ARROW, 0, 0, 0, nX, nY);
-				
-				if (pCaster == Hero)
-				{	//< CSD-TW-030606
-					SCharacterData.nCharacterMP -= g_lpMT[ICE_ARROW].exhaust_MP;
-					Hero->mp -= g_lpMT[ICE_ARROW].exhaust_MP;
-					g_mgrBattle.SendMagicExecute(ICE_ARROW, pTarget, nX, nY);
-				}	//> CSD-TW-030606
-			}
-			else
-			{
-				pCaster->bow_Type = 0;
-				InsertIssuedShot(pCaster, pTarget, THROW_ARROW, nX, nY);
-			}
-			
-			break;
-		}
+        {
+            const int effect = pCaster->bow_Type == 1 ? FIRE_ARROW : ICE_ARROW;
+            if (pCaster == Hero) InsertIssuedShot(pCaster, pTarget, effect, nX, nY);
+            else ::InsertMagic(pCaster, pTarget, effect, 0, 0, 0, nX, nY);
+            break;
+        }
 	}
 }	//> CSD-031014
 

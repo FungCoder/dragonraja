@@ -8,7 +8,6 @@
 #include <vector>
 #include <iostream>
 #include <cstdlib>
-#include <cstddef>
 #pragma pack(push, 1)
 #include "../Mapserver/HigherLayers/Network5.h"
 #pragma pack(pop)
@@ -16,12 +15,15 @@
 #include "../Mapserver/HigherLayers/CombatShotServer.h"
 
 enum { DRAGON_CONNECTIONS_START = 1, DRAGON_MAX_CONNECTIONS = 8,
-    CONNECT_JOIN = 3, FIRE_ARROW = 40, ICE_ARROW = 41, TACTICS_Archery = 50, TACTICS_Hurl = 51,
+    CONNECT_JOIN = 3, FIRE_ARROW = 29, ICE_ARROW = 38, TACTICS_Archery = 50, TACTICS_Hurl = 51,
     IK_THROW_EVENT = 60, WR_LONG1 = 70, WR_LONG2 = 71, WR_LONG3 = 72,
     CMD_SCRIPT_MESSAGE_BOX = 10273, TILE_SIZE = 32,
-    REM_AREA_X = 21 * 32, REM_AREA_Y = 17 * 32, ALIVE_ = 1 };
+    REM_AREA_X = 21 * 32, REM_AREA_Y = 17 * 32, ALIVE_ = 1,
+    Num_Of_Magic = 256, REMOVE_CURSE = 78, MP = 1, MK_WARNING = 2 };
 static int MapNumber = 5;
 static uint64_t nowMs = 100;
+static DWORD g_curr_time = 10;
+static struct { int exhaust_MP = 10, magic_Type = 51; } Magic_Ref[Num_Of_Magic];
 static DWORD timeGetTime() { return DWORD(nowMs); }
 static ULONGLONG TestTickCount64() { return nowMs; }
 #define GetTickCount64 TestTickCount64
@@ -34,6 +36,10 @@ struct CHARLIST
     bool player = true;
     int bAlive = ALIVE_;
     bool hasArrow = true;
+    int Mana = 1000, manaUpdates = 0;
+    bool stone = false, prepared = true, doing = true, learned = true, enabled = true;
+    bool filterAllowed = true, battleAllowed = true;
+    int preparedMagic = FIRE_ARROW;
     bool IsPlayer() const { return player; }
     bool IsDead() const { return Hp <= 0; }
     bool IsArrow() const { return hasArrow; }
@@ -43,6 +49,13 @@ struct CHARLIST
     int GetTacticsKind() const { return tactics; }
     int GetWeaponKind() const { return weapon; }
     unsigned GetCombatLevel(unsigned) const { return level; }
+    bool IsStone() const { return stone; }
+    bool CheckDoing(BYTE, DWORD) const { return doing; }
+    bool CheckEnd(BYTE selected, DWORD) { magic = selected; return true; }
+    void ClearMagic() { magic = 0; }
+    void SendCharInfoBasic(int, int) { ++manaUpdates; }
+    void Message(int, int, int) {}
+    void SetWanted(bool) {}
 };
 struct t_connection
 {
@@ -67,17 +80,61 @@ static std::vector<t_packet> sent;
 static void QueuePacket(t_connection*, int, t_packet* packet, int) { sent.push_back(*packet); }
 static std::atomic<unsigned> settlements(0);
 static std::atomic<int> settledKind(0);
-struct BattleFixture
+static std::atomic<unsigned> magicSettlements(0);
+static unsigned settledMagic = 0, filteredMagic = 0, prepareCalls = 0;
+static bool CanExecutePlayerMagicArrow(int connection, BYTE magic)
+{
+    return connections[connection].chrlst.prepared && connections[connection].chrlst.doing &&
+        connections[connection].chrlst.preparedMagic == magic;
+}
+static void ResetAutoPlaySession(int connection) { connections[connection].chrlst.prepared = false; }
+struct MagicBattleFixture
+{
+    void SetIndex(int index) { settledMagic = index; }
+    void SetBothID(WORD, WORD) {}
+    void SetBothPtr(CHARLIST*, CHARLIST*) {}
+    void SetCurrentTime(DWORD) {}
+    void SetContinueTime(int) {}
+    void SetPosition(int, int) {}
+    void Execute() { ++magicSettlements; }
+};
+static MagicBattleFixture magicBattle;
+struct CBattleManager
 {
     void RecvAuthorizedThrowResult(int, t_client_throw_result*, int kind)
     {
         settledKind = kind;
         ++settlements;
     }
+    bool PrepareMagicArrowShot(WORD, WORD, int, int, unsigned short&);
+    void RecvMagicResult(WORD, t_client_magic_result*);
+    void RecvAuthorizedMagicArrowResult(WORD, t_client_magic_result*);
+    void RecvMagicResultImpl(WORD, t_client_magic_result*, bool);
+    bool IsMagic(int magic) const { return magic > 0 && magic < 200; }
+    bool IsValid(BYTE, CHARLIST* actor) const { return actor->learned; }
+    bool IsValid(BYTE, int x, int y) const { return x >= 0 && y >= 0 && x < 100 && y < 100; }
+    bool IsEnable(BYTE, CHARLIST* actor) const { return actor->enabled; }
+    bool IsBattle(CHARLIST* actor, CHARLIST*) const { return actor->battleAllowed; }
+    bool FilterMagic(CHARLIST* actor, CHARLIST*, int, int)
+    {
+        ++prepareCalls;
+        if (!actor->filterAllowed) return false;
+        actor->Mana -= Magic_Ref[actor->GetMagic()].exhaust_MP;
+        return true;
+    }
+    bool FilterPlayerMagicResult(BYTE magic, CHARLIST* actor, CHARLIST*)
+    {
+        filteredMagic = magic;
+        return actor->learned && actor->filterAllowed;
+    }
+    bool FilterResult(CHARLIST* actor, CHARLIST* target)
+    { return FilterPlayerMagicResult(BYTE(actor->GetMagic()), actor, target); }
+    MagicBattleFixture* GetBattle(int) { return &magicBattle; }
 };
-static BattleFixture battle;
+static CBattleManager battle;
 static auto g_pBattleManager = &battle;
 #include "../Mapserver/HigherLayers/PlayerSessionSafety.h"
+#include "MagicArrowAuthorityProduction.inc"
 #include "CombatShotServerProduction.inc"
 
 static void Require(bool ok, const char* scenario)
@@ -106,7 +163,6 @@ static DragonCombatShot::BurstIssued IssueBurstFor(unsigned skill, unsigned leve
     connections[1].chrlst.active = int(skill);
     connections[1].chrlst.level = level;
     connections[1].chrlst.tactics = skill == IcingBlastSkill ? TACTICS_Hurl : TACTICS_Archery;
-    Require(UsesVersionedThrow(1), "migrated burst selector");
     Require(IssueCombatShot(1, 2, 100, 100), "server accepted burst release");
     Require(sent.back().h.header.type == BurstIssuedCommand, "burst release envelope");
     BurstIssued burst;
@@ -177,49 +233,7 @@ int main()
     issued = Issue(); hit = HitFor(issued);
     ResetCombatShotSession(1); Submit(hit);
     Require(settlements == 5 && !IssueCombatShot(1, 2, 100, 100), "map/disconnect requires fresh handshake");
-    Require(!AllowLegacyThrowResult(1), "normal action cannot use unversioned callback");
-    connections[1].chrlst.active = 227;
-    Require(!AllowLegacyThrowResult(1), "selecting a skill alone grants no legacy authority");
-    Require(!RegisterLegacyThrowRelease(1), "unknown active skill cannot open compatibility budget");
     connections[1].chrlst.active = 0;
-    connections[1].chrlst.magic = FIRE_ARROW;
-    Require(RegisterLegacyThrowRelease(1) && AllowLegacyThrowResult(1), "real fallback release creates one budget");
-    t_client_throw_result legacyHit = {};
-    legacyHit.idTarget = 2; legacyHit.nX = legacyHit.nY = 100;
-    auto submitLegacy = [&] { RecvLegacyCombatShotHit(1, &legacyHit, sizeof(legacyHit)); };
-    submitLegacy(); submitLegacy();
-    Require(settlements == 6 && !AllowLegacyThrowResult(1), "legacy result spends exactly one real release");
-    Require(RegisterLegacyThrowRelease(1), "next fallback release");
-    std::thread legacyFirst(submitLegacy), legacyReplay(submitLegacy);
-    legacyFirst.join(); legacyReplay.join();
-    Require(settlements == 7, "legacy concurrent replay has one consumer");
-    Require(RegisterLegacyThrowRelease(1), "invalid legacy candidate release");
-    legacyHit.idTarget = 65000; submitLegacy(); legacyHit.idTarget = 2; submitLegacy();
-    Require(settlements == 7, "legacy invalid candidate spends budget before retry");
-    Require(RegisterLegacyThrowRelease(1), "expiring fallback release");
-    nowMs += LifetimeMs;
-    submitLegacy();
-    Require(settlements == 7 && !AllowLegacyThrowResult(1), "legacy release expires");
-    Require(RegisterLegacyThrowRelease(1), "legacy skill switch release");
-    connections[1].chrlst.active = FireExtremeSkill;
-    submitLegacy(); submitLegacy();
-    Require(settlements == 8, "skill switch retains only the already accepted fallback budget");
-    connections[1].chrlst.active = 0;
-    Require(RegisterLegacyThrowRelease(1), "legacy death release");
-    CancelCombatShots(1);
-    submitLegacy();
-    Require(settlements == 8 && !AllowLegacyThrowResult(1), "death cancels legacy budget");
-    for (unsigned index = 0; index < MaxOutstanding; ++index)
-        Require(RegisterLegacyThrowRelease(1), "legacy bounded queue accepts real releases");
-    Require(!RegisterLegacyThrowRelease(1), "legacy queue cannot exceed release limit");
-    CancelCombatShots(1);
-    Require(RegisterLegacyThrowRelease(1), "legacy session identity release");
-    ++connections[1].chrlst.total_id;
-    submitLegacy();
-    Require(settlements == 8 && !AllowLegacyThrowResult(1), "new character cannot spend old budget");
-    --connections[1].chrlst.total_id;
-    CancelCombatShots(1);
-    connections[1].chrlst.magic = 0;
     nowMs += 201;
     RecvCombatShotHello(1, &hello, sizeof(hello));
     unsigned expected = settlements.load();
@@ -233,8 +247,6 @@ int main()
             (level == 3 ? 5 : 3) : (skill == FireExtremeSkill || skill == IceExtremeSkill ? 8 : 1);
         Require(burst.skill == skill && burst.level == level && burst.count == count,
             "count comes from the server skill level");
-        Require(!RegisterLegacyThrowRelease(1), "migrated skill refuses unversioned budget");
-        Require(!AllowLegacyThrowResult(1), "migrated burst cannot open legacy callback authority");
         connections[1].chrlst.active = 0;
         connections[1].chrlst.level = 1;
         auto invented = BurstHitFor(burst, 0);
@@ -280,16 +292,78 @@ int main()
     Require(!IssueCombatShot(1, 2, 100, 100) && sent.size() == beforeInvalid,
         "unlearned burst cannot mint projectile IDs");
     connections[1].chrlst.active = 0;
-    connections[1].chrlst.magic = ICE_ARROW;
-    Require(RegisterLegacyThrowRelease(1), "ice arrow fallback budget");
-    unsigned char malformed[sizeof(legacyHit)];
-    memcpy(malformed, &legacyHit, sizeof(malformed));
-    malformed[offsetof(t_client_throw_result, bWanted)] = 2;
-    RecvLegacyCombatShotHit(1, malformed, sizeof(malformed));
-    Require(settlements == expected && AllowLegacyThrowResult(1), "invalid legacy bool is rejected before decoding");
-    RecvLegacyCombatShotHit(1, &legacyHit, sizeof(legacyHit) - 1);
-    Require(settlements == expected && AllowLegacyThrowResult(1), "short legacy frame cannot settle");
-    submitLegacy(); ++expected;
-    Require(settlements == expected && !AllowLegacyThrowResult(1), "valid ice fallback consumes budget");
+    auto& caster = connections[1].chrlst;
+    caster.tactics = TACTICS_Archery; caster.active = 0;
+    for (unsigned magic : {unsigned(FIRE_ARROW), unsigned(ICE_ARROW)})
+    {
+        caster.magic = caster.preparedMagic = magic;
+        caster.Mana = 100; caster.prepared = caster.doing = true;
+        const unsigned oldMagicHits = magicSettlements;
+        const unsigned oldPhysicalHits = settlements;
+        Require(IssueCombatShot(1, 2, 100, 100), "magic arrow accepted via same release ledger");
+        Require(sent.back().h.header.type == ArrowIssuedCommand && caster.Mana == 90,
+            "server pays once before publishing magic-arrow action");
+        ArrowIssued arrow; memcpy(&arrow, sent.back().u.data, sizeof(arrow));
+        Require(arrow.magic == magic, "wire mode is chosen by server");
+        t_client_magic_result oldHit = {};
+        oldHit.nMagic = BYTE(magic); oldHit.idTarget = 2; oldHit.nX = oldHit.nY = 100;
+        battle.RecvMagicResult(1, &oldHit);
+        Require(magicSettlements == oldMagicHits && settlements == oldPhysicalHits && caster.Mana == 90,
+            "unversioned magic-arrow result cannot spend or duplicate the action");
+        const auto arrowHit = HitFor(arrow.shot);
+        caster.magic = 30; // Old in-flight arrow must not change the next selected spell.
+        Submit(arrowHit); Submit(arrowHit);
+        Require(magicSettlements == oldMagicHits + 1 && settlements == oldPhysicalHits &&
+            settledMagic == magic && filteredMagic == magic && caster.magic == 30 && caster.Mana == 90,
+            "one immutable arrow mode settles once without overwriting next selection");
+        caster.magic = magic; caster.Mana = 0;
+        const auto fallback = Issue();
+        battle.RecvMagicResult(1, &oldHit);
+        Submit(HitFor(fallback)); Submit(HitFor(fallback));
+        Require(settlements == oldPhysicalHits + 1 && magicSettlements == oldMagicHits + 1 && caster.Mana == 0,
+            "insufficient mana grants only physical damage from the same one-action model");
+        caster.Mana = 100; caster.prepared = false;
+        caster.magic = magic;
+        auto normal = Issue(); Submit(HitFor(normal));
+        Require(caster.Mana == 100, "unprepared arrows cannot pay for or claim magic damage");
+        caster.prepared = true; caster.doing = false;
+        normal = Issue(); Submit(HitFor(normal));
+        Require(caster.Mana == 100, "expired cast falls back to ordinary release");
+        caster.doing = true; caster.learned = false;
+        Require(!IssueCombatShot(1, 2, 100, 100) && caster.Mana == 100, "unlearned mode refused without payment");
+        caster.learned = true; caster.enabled = false;
+        Require(!IssueCombatShot(1, 2, 100, 100) && caster.Mana == 100, "disabled magic mode refused");
+        caster.enabled = true; caster.filterAllowed = false;
+        Require(!IssueCombatShot(1, 2, 100, 100) && caster.Mana == 100, "failed magic release filter grants no action");
+        caster.filterAllowed = true;
+        connections[2].chrlst.stone = true;
+        Require(!IssueCombatShot(1, 2, 100, 100) && caster.Mana == 100, "stone target cannot charge a magic release");
+        connections[2].chrlst.stone = false;
+        Require(IssueCombatShot(1, 2, 100, 100), "concurrent arrow release");
+        memcpy(&arrow, sent.back().u.data, sizeof(arrow));
+        const auto concurrent = HitFor(arrow.shot);
+        const unsigned beforeConcurrent = magicSettlements;
+        std::thread arrowFirst([&] { Submit(concurrent); }), arrowReplay([&] { Submit(concurrent); });
+        arrowFirst.join(); arrowReplay.join();
+        Require(magicSettlements == beforeConcurrent + 1 && caster.Mana == 90, "concurrent arrow replay spends once");
+        Require(IssueCombatShot(1, 2, 100, 100), "invalid arrow candidate release");
+        memcpy(&arrow, sent.back().u.data, sizeof(arrow));
+        auto badCandidate = HitFor(arrow.shot); badCandidate.target = 65000;
+        Submit(badCandidate); Submit(HitFor(arrow.shot));
+        Require(magicSettlements == beforeConcurrent + 1 && caster.Mana == 80,
+            "invalid candidate still spends paid arrow and cannot retry");
+        Require(IssueCombatShot(1, 2, 100, 100), "expiring paid arrow");
+        memcpy(&arrow, sent.back().u.data, sizeof(arrow)); nowMs += LifetimeMs;
+        Submit(HitFor(arrow.shot));
+        Require(magicSettlements == beforeConcurrent + 1, "expired magic arrow cannot settle");
+        CancelCombatShots(1);
+        caster.Mana = 10000;
+        for (unsigned index = 0; index < MaxOutstanding; ++index)
+            Require(IssueCombatShot(1, 2, 100, 100), "paid arrow capacity");
+        const int fullMana = caster.Mana;
+        Require(!IssueCombatShot(1, 2, 100, 100) && caster.Mana == fullMana,
+            "full action ledger rejects before payment");
+        CancelCombatShots(1);
+    }
     std::cout << "Production combat shot server tests passed\n";
 }

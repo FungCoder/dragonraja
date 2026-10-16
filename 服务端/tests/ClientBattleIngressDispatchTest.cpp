@@ -41,8 +41,6 @@ static CHARLIST* GetCharListPtr(unsigned id)
 }
 static int dispatches;
 static int HandleCommand(int, t_packet*) { ++dispatches; return 1; }
-static bool allowLegacyShot = false;
-static bool AllowLegacyThrowResult(int) { return allowLegacyShot; }
 #include "../Mapserver/HigherLayers/PlayerSessionSafety.h"
 #include "ClientBattleIngressProduction.inc"
 
@@ -98,8 +96,7 @@ int main()
     packet.h.header = {CMD_THROW_RESULT, sizeof(t_client_throw_result)};
     Require(HandleUserCommand(1, &packet) < 0 && dispatches == 2,
         "ordinary shot cannot fall back to a result without an action");
-    allowLegacyShot = true;
-    Require(HandleUserCommand(1, &packet) == 1 && dispatches == 3,
-        "separate legacy migration mode remains explicit");
+    Require(HandleUserCommand(1, &packet) < 0 && dispatches == 2,
+        "unversioned throw results are retired for every player session");
     std::cout << "Production client battle dispatch tests passed\n";
 }

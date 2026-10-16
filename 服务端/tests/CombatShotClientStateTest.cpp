@@ -93,5 +93,14 @@ int main()
             Require(state.TakePart(1000, part, count, 100) == 1000 + part, "one/eight-part consumption");
         Require(!state.TakePart(1000, 0, count, 100), "one/eight-part rebind rejected");
     }
+    state.Begin(11); state.Accept({Version, 11});
+    shot.nonce = 11; shot.action = 2000;
+    state.Record(shot, 100, FireArrowMagic);
+    Require(!state.Take(2, 100) && !state.Take(2, 100, IceArrowMagic), "paid arrow cannot be rebound as physical/ice");
+    Require(state.Take(2, 100, FireArrowMagic) == 2000 && !state.Take(2, 100, FireArrowMagic),
+        "paid arrow binds once to the matching mode");
+    ++shot.action; state.Record(shot, 100);
+    Require(!state.Take(2, 100, FireArrowMagic) && state.Take(2, 100) == shot.action,
+        "ordinary fallback cannot be rebound as magic");
     std::cout << "CombatShotClientStateTest passed\n";
 }

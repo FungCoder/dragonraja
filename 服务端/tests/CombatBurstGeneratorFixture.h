@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 // Real generator/AddEffect bodies are extracted at test time. Only graphics,
 // allocation, resource tables and scene insertion are replaced here.
 using LPCHARACTER = CharacterFixture*;
@@ -60,4 +61,16 @@ public:
 static int GetTargetHeight(int, LPCHARACTER target) { return target->height; }
 #include "CombatShotEffectProduction.inc"
 #include "CombatShotRootProduction.inc"
+#include "CombatShotStrikeProduction.inc"
+static void InsertMagic(LPCHARACTER caster, LPCHARACTER target, int effect, int sub,
+    int sx, int sy, int tx, int ty)
+{
+    InsertMagicWithAction(caster, target, effect, sub, sx, sy, tx, ty, false, 0, false, 0, 0);
+}
+class CStrikeSys
+{
+public:
+    void Shoot(LPCHARACTER, LPCHARACTER);
+};
+#include "CombatShotShootProduction.inc"
 #undef MemAlloc

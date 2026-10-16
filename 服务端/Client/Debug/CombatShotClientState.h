@@ -26,12 +26,13 @@ public:
             shot.nonce == nonce_ && shot.action > last_issued_ && shot.caster == actor &&
             shot.lifetime_ms == DragonCombatShot::LifetimeMs;
     }
-    void Record(const DragonCombatShot::Issued& shot, uint32_t now)
+    void Record(const DragonCombatShot::Issued& shot, uint32_t now, unsigned magic = 0)
     {
         last_issued_ = pending_action_ = shot.action;
         target_ = shot.target;
         created_ms_ = now;
         pending_burst_ = false;
+        pending_magic_ = magic;
     }
     bool CanAcceptBurst(const DragonCombatShot::BurstIssued& shot, unsigned actor) const
     {
@@ -59,6 +60,7 @@ public:
         target_ = shot.target;
         created_ms_ = now;
         pending_burst_ = true;
+        pending_magic_ = 0;
         return true;
     }
     bool HasBurstCapacity(uint32_t now) const
@@ -68,10 +70,10 @@ public:
             if (!Expired(entry.second, now)) ++live;
         return live < DragonCombatShot::MaxOutstanding;
     }
-    void ForgetPending() { pending_action_ = 0; target_ = 0; pending_burst_ = false; }
-    uint64_t Take(unsigned target, uint32_t now)
+    void ForgetPending() { pending_action_ = 0; target_ = 0; pending_burst_ = false; pending_magic_ = 0; }
+    uint64_t Take(unsigned target, uint32_t now, unsigned magic = 0)
     {
-        if (!Ready() || !pending_action_ || pending_burst_ || target != target_) return 0;
+        if (!Ready() || !pending_action_ || pending_burst_ || target != target_ || magic != pending_magic_) return 0;
         const uint64_t action = uint32_t(now - created_ms_) < DragonCombatShot::LifetimeMs ?
             pending_action_ : 0;
         ForgetPending();
@@ -126,6 +128,7 @@ private:
     uint32_t nonce_ = 0, created_ms_ = 0;
     uint64_t last_issued_ = 0, pending_action_ = 0;
     unsigned target_ = 0;
+    unsigned pending_magic_ = 0;
     bool ready_ = false;
     bool pending_burst_ = false;
     std::map<uint64_t, BurstEntry> bursts_;

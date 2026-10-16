@@ -4429,7 +4429,8 @@ static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target
 	
 	TempList->shot_action = shotAction;
     TempList->shot_batch = singlePart ? 0 : shotBatch;
-	TempList->magicSerial = shotBatch ? int(batchSkill) : lpChar_Own->excute_MagicNum;			//실제 마법 번호(1~18?)
+	TempList->magicSerial = shotBatch ? int(batchSkill) :
+        ((shotAction && (magicNum == FIRE_ARROW || magicNum == ICE_ARROW)) ? magicNum : lpChar_Own->excute_MagicNum);			//실제 마법 번호(1~18?)
 	
 	TempList->magicNum = magicNum;									//실제 마법에 연결된 실행되고 있는 서브 마법 번호
 	TempList->magicSubNum = magicSubNum;							//같은 마법이지만 구현의 차이를 두기위한 서브 타입

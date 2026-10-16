@@ -107,17 +107,16 @@ int main()
         Require(!burstLedger.Consume(owner, 20, burst.id + part, 401, consumed), "eight-way replay rejected");
     }
     Require(!burstLedger.Consume(owner, 20, 4008, 401, consumed), "ninth part rejected");
-    CombatShotLedger fallback;
-    fallback.Handshake(owner, 1);
-    ShotAction firstFallback; firstFallback.id = 1;
-    ShotAction secondFallback; secondFallback.id = 2;
-    Require(fallback.Issue(owner, firstFallback, 100) && fallback.Issue(owner, secondFallback, 101),
-        "legacy release budgets reuse the same ledger");
-    Require(fallback.OldestPending(owner, 102) == 1 && fallback.ConsumeOldest(owner, 102, consumed) &&
-        consumed.id == 1, "compatibility callbacks spend oldest real release");
-    Require(fallback.ConsumeOldest(owner, 102, consumed) && consumed.id == 2 &&
-        !fallback.ConsumeOldest(owner, 102, consumed), "compatibility queue is bounded by actual releases");
-    Require(fallback.Issue(owner, secondFallback, 200) &&
-        !fallback.ConsumeOldest(owner, 200 + LifetimeMs, consumed), "compatibility queue respects expiry");
+    CombatShotLedger arrowLedger;
+    Require(!arrowLedger.HasCapacity(owner, 100), "no capacity before negotiation");
+    arrowLedger.Handshake(owner, 1);
+    ShotAction paid; paid.id = 5000; paid.magic = FireArrowMagic;
+    Require(arrowLedger.HasCapacity(owner, 100) && arrowLedger.Issue(owner, paid, 100), "paid arrow stored");
+    Require(arrowLedger.Consume(owner, 1, 5000, 101, consumed) && consumed.magic == FireArrowMagic,
+        "damage mode is immutable ledger metadata");
+    for (unsigned index = 0; index < MaxOutstanding; ++index)
+    { paid.id = 6000 + index; Require(arrowLedger.Issue(owner, paid, 200), "capacity fill"); }
+    Require(!arrowLedger.HasCapacity(owner, 201) && arrowLedger.HasCapacity(owner, 200 + LifetimeMs),
+        "payment can check capacity before spending resources");
     std::cout << "CombatShotLedgerTest passed\n";
 }

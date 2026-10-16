@@ -12,13 +12,18 @@
 #include "../Client/Debug/CombatShotClientState.h"
 enum { THROW_ARROW = 194, THROW_KNIFE = 195, THROW_FIRE_ARROW = 665,
     THROW_ICE_KNIFE = 666, THROW_SNOW_BALL = 193, THROW_WATER_BALL = 661,
-    THROW_BIG_GULP = 663, MK_WARNING = 1 };
+    THROW_BIG_GULP = 663, MK_WARNING = 1, FIRE_ARROW = 29, ICE_ARROW = 38,
+    SPRITETYPE_ITEM = 50, TILE_SIZE = 32 };
 static struct CharacterFixture
 {
     unsigned id = 1;
     bool dead = false;
     int nActiveCombat = 0, nActiveLevel = 0, excute_MagicNum = 0;
     int direction = 0, height = 0, x = 100, y = 100;
+    int bow_Type = 0;
+    int nAttackedType = 0, nCurrentAction = 0, shoot_PointX = 0, shoot_PointY = 0;
+    int accessory[3] = {};
+    struct { int height[1] = {}; } AnimationTable[1];
 } hero;
 static auto Hero = &hero;
 static bool IsDead(decltype(Hero) player) { return player->dead; }
@@ -58,8 +63,8 @@ int main()
         "ordinary bow and thrown weapon require secure capability");
     Require(CombatShotNeedsHandshake(MultiFireSkill, 0) && CombatShotNeedsHandshake(IcingBlastSkill, 3),
         "migrated burst skills require negotiated capability");
-    Require(!CombatShotNeedsHandshake(227, 0) && !CombatShotNeedsHandshake(0, 1) &&
-        !CombatShotNeedsHandshake(0, 2), "explicit advanced/magic-arrow migration scope");
+    Require(!CombatShotNeedsHandshake(227, 0) && CombatShotNeedsHandshake(0, 1) &&
+        CombatShotNeedsHandshake(0, 2), "magic arrows require the same negotiated capability");
     Require(sent.size() == 1 && sent.back().h.header.type == HelloCommand,
         "begin handshake after map ready");
     Hello hello;
@@ -226,6 +231,48 @@ int main()
     g_ClientTime += LifetimeMs;
     CombatShotReceive(BurstIssuedCommand, &burst, sizeof(burst));
     Require(animations == fullAnimations + 1, "expired batch slots can be reused");
+    for (unsigned magic : {unsigned(FireArrowMagic), unsigned(IceArrowMagic)})
+    {
+        nextAction += 100;
+        ArrowIssued arrow = {{Version, hello.nonce, nextAction, 1, 2, 100, 100, LifetimeMs}, uint16_t(magic)};
+        const unsigned beforeArrow = animations;
+        CombatShotReceive(ArrowIssuedCommand, &arrow, sizeof(arrow) - 1);
+        auto badArrow = arrow; badArrow.magic = 30;
+        CombatShotReceive(ArrowIssuedCommand, &badArrow, sizeof(badArrow));
+        badArrow = arrow; ++badArrow.shot.nonce;
+        CombatShotReceive(ArrowIssuedCommand, &badArrow, sizeof(badArrow));
+        Require(animations == beforeArrow, "short, stale and non-arrow modes cannot animate");
+        CombatShotReceive(ArrowIssuedCommand, &arrow, sizeof(arrow));
+        CombatShotReceive(ArrowIssuedCommand, &arrow, sizeof(arrow));
+        Require(animations == beforeArrow + 1 && Hero->bow_Type == (magic == FireArrowMagic ? 1 : 2),
+            "server mode starts one matching arrow animation");
+        Require(!CombatShotTake(1, 2, THROW_ARROW) &&
+            !CombatShotTake(1, 2, magic == FireArrowMagic ? ICE_ARROW : FIRE_ARROW),
+            "physical or other magic effect cannot steal paid arrow action");
+        CharacterFixture target; target.id = 2;
+        generated.clear(); Hero->excute_MagicNum = 999;
+        CStrikeSys shooter;
+        shooter.Shoot(Hero, &target);
+        Require(generated.size() == 1 && generated[0].shot_action == nextAction &&
+            generated[0].magicSerial == magic, "real Shoot and effect context preserve paid action and mode");
+        shooter.Shoot(Hero, &target);
+        Require(generated.size() == 1, "repeated magic shoot has no legacy fallback");
+        CombatShotSendHit(generated[0].shot_action, 2, 100, 100, false);
+        memcpy(&hit, sent.back().u.data, sizeof(hit));
+        Require(hit.action == nextAction && sent.back().h.header.type == HitCommand,
+            "magic impact uses the same one-action hit format");
+        ++nextAction;
+        issued.action = nextAction;
+        CombatShotReceive(IssuedCommand, &issued, sizeof(issued));
+        Require(Hero->bow_Type == 0 && !CombatShotTake(1, 2, magic), "server fallback cannot claim magic mode");
+        generated.clear(); shooter.Shoot(Hero, &target);
+        Require(generated.size() == 1 && generated[0].shot_action == nextAction,
+            "real Shoot creates one physical fallback projectile");
+        ++nextAction; arrow.shot.action = nextAction;
+        CombatShotReceive(ArrowIssuedCommand, &arrow, sizeof(arrow));
+        g_ClientTime += LifetimeMs; generated.clear(); shooter.Shoot(Hero, &target);
+        Require(generated.empty(), "expired paid arrow cannot become an unversioned projectile");
+    }
     const size_t before = sent.size();
     CombatShotReset();
     Require(!CombatShotBurstSkill(nextAction) && !CombatShotTakePart(nextAction, 0, 3),

@@ -46,6 +46,25 @@ $rootEnd = $combatSource.IndexOf('extern int g_CurrCharStatus;', $rootStart, [St
 if ($rootStart -lt 0 -or $rootEnd -le $rootStart) { throw 'Missing production root helper' }
 [IO.File]::WriteAllBytes((Join-Path $output 'CombatShotRootProduction.inc'),
     $legacyEncoding.GetBytes($combatSource.Substring($rootStart, $rootEnd - $rootStart)))
+$managerSource = $legacyEncoding.GetString([IO.File]::ReadAllBytes(
+    (Join-Path $root '服务端/Mapserver/HigherLayers/BattleManager.cpp')))
+$arrowStart = $managerSource.IndexOf('bool CBattleManager::PrepareMagicArrowShot(', [StringComparison]::Ordinal)
+$arrowEnd = $managerSource.IndexOf('void CBattleManager::RecvMagicResult(t_magic_result_d*', $arrowStart, [StringComparison]::Ordinal)
+if ($arrowStart -lt 0 -or $arrowEnd -le $arrowStart) { throw 'Missing magic-arrow authority handlers' }
+[IO.File]::WriteAllBytes((Join-Path $output 'MagicArrowAuthorityProduction.inc'),
+    $legacyEncoding.GetBytes($managerSource.Substring($arrowStart, $arrowEnd - $arrowStart)))
+$strikeSource = $legacyEncoding.GetString([IO.File]::ReadAllBytes(
+    (Join-Path $root '服务端/Client/Debug/StrikeSys.cpp')))
+$strikeNamespace = [regex]::Match($strikeSource, '(?m)^namespace\s*\{')
+$strikeEnd = $strikeSource.IndexOf('//////////////////////////////////////////////////////////////////////', $strikeNamespace.Index, [StringComparison]::Ordinal)
+if (!$strikeNamespace.Success -or $strikeEnd -le $strikeNamespace.Index) { throw 'Missing actual projectile binding helper' }
+[IO.File]::WriteAllBytes((Join-Path $output 'CombatShotStrikeProduction.inc'),
+    $legacyEncoding.GetBytes($strikeSource.Substring($strikeNamespace.Index, $strikeEnd - $strikeNamespace.Index)))
+$shootStart = $strikeSource.IndexOf('void CStrikeSys::Shoot(', [StringComparison]::Ordinal)
+$shootEnd = $strikeSource.IndexOf('void CStrikeSys::Throw(', $shootStart, [StringComparison]::Ordinal)
+if ($shootStart -lt 0 -or $shootEnd -le $shootStart) { throw 'Missing production Shoot method' }
+[IO.File]::WriteAllBytes((Join-Path $output 'CombatShotShootProduction.inc'),
+    $legacyEncoding.GetBytes($strikeSource.Substring($shootStart, $shootEnd - $shootStart)))
 $vcvars = 'C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvars64.bat'
 if (!(Test-Path -LiteralPath $vcvars)) { throw 'C++ build tools not found' }
 $commands = @('@echo off', 'chcp 65001 >nul', "call `"$vcvars`" >nul", 'if errorlevel 1 exit /b 1')

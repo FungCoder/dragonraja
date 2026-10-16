@@ -51,7 +51,14 @@ int main()
 
     gate.Begin(owner, 12, UINT32_MAX - 100, 300);
     Expect(!gate.CanExecute(owner, 12, 198), "early across clock wrap");
-    Expect(gate.CanExecute(owner, 12, 199), "ready across clock wrap");
+    Expect(gate.CanExecute(owner, 12, uint64_t(UINT32_MAX) + 200), "ready after 32-bit clock range");
+    Expect(!gate.CanExecute(owner, 12, 199), "backward clock cannot authorize old cast");
+    gate.Begin(owner, 29, 1000, 1750);
+    Expect(!gate.CanExecuteWithin(owner, 29, 2749, 16000), "arrow cannot launch before preparation");
+    Expect(gate.CanExecuteWithin(owner, 29, 2750, 16000), "arrow ready boundary");
+    Expect(gate.CanExecuteWithin(owner, 29, 18749, 16000), "arrow retains full window after preparation");
+    Expect(!gate.CanExecuteWithin(owner, 29, 18750, 16000), "arrow activation window expires");
+    Expect(!gate.CanExecuteWithin(owner, 29, uint64_t(UINT32_MAX) + 2751, 16000), "full clock cycle cannot revive arrow mode");
     gate.Begin(owner, 13, 20, 65535);
     Expect(!gate.CanExecute(owner, 13, 65554), "maximum wire duration early");
     Expect(gate.CanExecute(owner, 13, 65555), "maximum wire duration ready");

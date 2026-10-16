@@ -5,13 +5,18 @@
 
 namespace DragonCombatShot
 {
-enum { Version = 3, HelloCommand = 31410, AckCommand = 31411,
-    IssuedCommand = 31412, HitCommand = 31413, BurstIssuedCommand = 31414 };
+enum { Version = 4, HelloCommand = 31410, AckCommand = 31411,
+    IssuedCommand = 31412, HitCommand = 31413, BurstIssuedCommand = 31414,
+    ArrowIssuedCommand = 31415 };
 // New protocol policy, not a claimed timeout from the reference client.
 enum { LifetimeMs = 15000, MaxOutstanding = 64, MaxBurstParts = 8,
     MultiFireSkill = 228, FleetMissileSkill = 229, ConvertingArmorSkill = 230,
     FireExtremeSkill = 232, IcingBlastSkill = 239, SharkMissileSkill = 241,
-    IceExtremeSkill = 244 };
+    IceExtremeSkill = 244, FireArrowMagic = 29, IceArrowMagic = 38 };
+inline bool IsMagicArrow(unsigned magic)
+{
+    return magic == FireArrowMagic || magic == IceArrowMagic;
+}
 inline bool IsBurstSkill(unsigned skill)
 {
     return skill == MultiFireSkill || skill == IcingBlastSkill ||
@@ -54,6 +59,11 @@ struct Hit
     int16_t y;
     uint8_t wanted;
 };
+struct ArrowIssued
+{
+    Issued shot;
+    uint16_t magic;
+};
 struct BurstIssued
 {
     uint16_t version;
@@ -72,6 +82,7 @@ struct BurstIssued
 static_assert(sizeof(Hello) == 6 && sizeof(Ack) == 6, "Shot handshake layout");
 static_assert(sizeof(Issued) == 26 && sizeof(Hit) == 21, "Shot action layout");
 static_assert(sizeof(BurstIssued) == 86, "Burst issue layout");
+static_assert(sizeof(ArrowIssued) == 28, "Magic arrow issue layout");
 
 template<class Packet, class Payload>
 void WritePacket(Packet& packet, uint16_t command, const Payload& payload)

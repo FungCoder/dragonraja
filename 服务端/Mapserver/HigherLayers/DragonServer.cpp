@@ -459,7 +459,6 @@ int HandleUserCommand(int cn, t_packet* packet)
         const int group = Magic_Ref[result.nMagic].magic_Type / 10;
         if (group < 1 || group > 6) return -83;
     }
-    if (command == CMD_THROW_RESULT && !AllowLegacyThrowResult(cn)) return -84;
     return HandleCommand(cn, packet);
 }
 

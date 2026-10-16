@@ -6,6 +6,7 @@
 #include "BattleManager.h"
 #include "AutoPlayServer.h"
 #include "CombatShotServer.h"
+#include "../../Library/Shared/CombatShotProtocol.h"
 #include "../../Library/Shared/BattleSkillSafety.h"
 
 #include "PhysicalAttack.h"
@@ -561,15 +562,7 @@ void CBattleManager::RecvThrowAttack(WORD idCaster, t_client_throw_attack* pPack
 			m_packet.u.strike.server_throw_attack.nX = pTarget->Tox;
 			m_packet.u.strike.server_throw_attack.nY = pTarget->Toy;
 			m_packet.u.strike.server_throw_attack.nCombat = pCaster->GetActiveCombat();
-			if (UsesVersionedThrow(idCaster))
-            {
-                if (!IssueCombatShot(idCaster, idTarget, pTarget->Tox, pTarget->Toy)) return;
-            }
-            else
-            {
-                if (!RegisterLegacyThrowRelease(idCaster)) return;
-                ::QueuePacket(connections, idCaster, &m_packet, 1);
-            }
+            if (!IssueCombatShot(idCaster, idTarget, pTarget->Tox, pTarget->Toy)) return;
 			::CastMe2Other(idCaster, &m_packet);
 			break;
 		}
@@ -578,7 +571,8 @@ void CBattleManager::RecvThrowAttack(WORD idCaster, t_client_throw_attack* pPack
 
 void CBattleManager::RecvThrowResult(WORD idCaster, t_client_throw_result* pPacket)
 {
-    RecvLegacyCombatShotHit(idCaster, pPacket, sizeof(*pPacket));
+    // Unversioned player callbacks have no remaining authority.
+    (void)idCaster; (void)pPacket;
 }
 
 void CBattleManager::RecvAuthorizedThrowResult(WORD idCaster, t_client_throw_result* pPacket, int attackKind)
@@ -1020,7 +1014,45 @@ MAGIC_FAIL:
 	::CastMe2Other(idCaster, &m_packet);
 }	//> CSD-TW-030606
 
+bool CBattleManager::PrepareMagicArrowShot(WORD idCaster, WORD idTarget, int x, int y, unsigned short& magic)
+{
+    magic = 0;
+    CHARLIST* caster = GetCharListPtr(idCaster);
+    CHARLIST* target = GetCharListPtr(idTarget);
+    if (!caster || !target) return false;
+    const BYTE selected = caster->GetMagic();
+    if (caster->GetActiveCombat() != 0 || caster->GetTacticsKind() != TACTICS_Archery ||
+        !DragonCombatShot::IsMagicArrow(selected)) return true;
+    // Ordinary arrows remain possible before preparation is ready or after it expires.
+    if (!CanExecutePlayerMagicArrow(idCaster, selected)) return true;
+    if (!IsValid(selected, caster) || !IsEnable(selected, caster)) return false;
+    if (Magic_Ref[selected].exhaust_MP < 0) return false;
+    if (caster->Mana < Magic_Ref[selected].exhaust_MP)
+    {
+        caster->ClearMagic();
+        ResetAutoPlaySession(idCaster);
+        return true;
+    }
+    if (!IsBattle(caster, target) || target->IsStone() || !IsValid(selected, x >> 5, y >> 5)) return false;
+    if (!FilterMagic(caster, target, x, y)) return false;
+    caster->SendCharInfoBasic(MP, caster->Mana);
+    magic = selected;
+    return true;
+}
+
 void CBattleManager::RecvMagicResult(WORD idCaster, t_client_magic_result* pPacket)
+{
+    if (!pPacket || DragonCombatShot::IsMagicArrow(pPacket->nMagic)) return;
+    RecvMagicResultImpl(idCaster, pPacket, false);
+}
+
+void CBattleManager::RecvAuthorizedMagicArrowResult(WORD idCaster, t_client_magic_result* pPacket)
+{
+    if (!pPacket || !DragonCombatShot::IsMagicArrow(pPacket->nMagic)) return;
+    RecvMagicResultImpl(idCaster, pPacket, true);
+}
+
+void CBattleManager::RecvMagicResultImpl(WORD idCaster, t_client_magic_result* pPacket, bool authorizedArrow)
 {
 	const WORD idTarget = pPacket->idTarget; // 마법을 사용한 대상자
 	CHARLIST* pCaster = ::GetCharListPtr(idCaster);
@@ -1043,25 +1075,25 @@ void CBattleManager::RecvMagicResult(WORD idCaster, t_client_magic_result* pPack
 	// 석화에 걸려있으면 어떠한 마법도 적용을 받지 못함. 단 저주해제는 제외
 	if (pTarget->IsStone() && nMagic != REMOVE_CURSE)
 	{	
-		pCaster->ClearMagic();
+		if (!authorizedArrow) pCaster->ClearMagic();
 		return;
 	}
 	// 마법 적용이 가능한지 검사
-	if (!pCaster->CheckEnd(nMagic, g_curr_time))
+	if (!authorizedArrow && !pCaster->CheckEnd(nMagic, g_curr_time))
 	{ 
-		pCaster->ClearMagic();
+		if (!authorizedArrow) pCaster->ClearMagic();
 		return;
 	}  
 	// 서로 공격 가능여부 검사
 	if (!IsBattle(pCaster, pTarget))
 	{
-		pCaster->ClearMagic();
+		if (!authorizedArrow) pCaster->ClearMagic();
 		return;
 	}
 	
-	if (!FilterResult(pCaster, pTarget))
+	if (!(authorizedArrow ? FilterPlayerMagicResult(BYTE(nMagic), pCaster, pTarget) : FilterResult(pCaster, pTarget)))
 	{
-		pCaster->ClearMagic();
+		if (!authorizedArrow) pCaster->ClearMagic();
 		return;
 	}
 	
@@ -1977,8 +2009,12 @@ bool CBattleManager::FilterCombat(BYTE nCombat, CHARLIST* pCaster, CHARLIST* pTa
 }	//> CSD-TW-030606
 
 bool CBattleManager::FilterResult(CHARLIST* pCaster, CHARLIST* pTarget)
+{
+    return FilterPlayerMagicResult(pCaster->GetMagic(), pCaster, pTarget);
+}
+
+bool CBattleManager::FilterPlayerMagicResult(BYTE nMagic, CHARLIST* pCaster, CHARLIST* pTarget)
 {	//< CSD-TW-030627
-	const BYTE nMagic = pCaster->GetMagic();         // 마법의 번호
 	if (!IsValid(nMagic, pCaster))          return false;
 	const BYTE nType = Magic_Ref[nMagic].magic_Type; // 마법의 타입
 	if (!IsApply(nType, pCaster, pTarget))  return false;

@@ -12,6 +12,7 @@ struct ShotAction
     int launch_x = 0;
     int launch_y = 0;
     int attack_kind = 0;
+    uint16_t magic = 0;
     uint16_t parts = 1;
     uint16_t used_parts = 0;
 };
@@ -49,6 +50,13 @@ public:
     uint32_t Nonce(const PreparationIdentity& identity) const
     {
         return initialized_ && identity_ == identity ? nonce_ : 0;
+    }
+    bool HasCapacity(const PreparationIdentity& identity, uint64_t now) const
+    {
+        if (!Nonce(identity)) return false;
+        for (const ShotAction& action : actions_)
+            if (!action.id || Expired(action, now)) return true;
+        return false;
     }
     bool Issue(const PreparationIdentity& identity, const ShotAction& action,
         uint64_t now)
@@ -88,28 +96,6 @@ public:
             return true;
         }
         return false;
-    }
-    uint64_t OldestPending(const PreparationIdentity& identity, uint64_t now) const
-    {
-        if (!Nonce(identity)) return 0;
-        uint64_t oldest = 0;
-        for (const ShotAction& action : actions_)
-        {
-            if (!action.id || Expired(action, now)) continue;
-            for (unsigned part = 0; part < action.parts; ++part)
-                if (!(action.used_parts & (1u << part)))
-                {
-                    const uint64_t candidate = action.id + part;
-                    if (!oldest || candidate < oldest) oldest = candidate;
-                    break;
-                }
-        }
-        return oldest;
-    }
-    // Used only for explicitly retained legacy callbacks without a wire ID.
-    bool ConsumeOldest(const PreparationIdentity& identity, uint64_t now, ShotAction& result)
-    {
-        return Consume(identity, Nonce(identity), OldestPending(identity, now), now, result);
     }
 private:
     static bool Expired(const ShotAction& action, uint64_t now)
