@@ -98,6 +98,26 @@ int main()
         BurstParts(MultiFireSkill, 3) == 5 && BurstParts(IcingBlastSkill, 3) == 5,
         "production level-to-projectile rules");
     Require(!BurstParts(MultiFireSkill, 0) && !BurstParts(IcingBlastSkill, 4) &&
-        !BurstParts(232, 3), "unknown skills and levels grant no burst count");
+        !BurstParts(227, 3), "unknown skills and levels grant no burst count");
+    burst.id = 4000; burst.parts = 8;
+    Require(burstLedger.Issue(owner, burst, 400), "eight-way release fits one slot");
+    for (unsigned part = 0; part < 8; ++part)
+    {
+        Require(burstLedger.Consume(owner, 20, burst.id + part, 401, consumed), "eight distinct parts");
+        Require(!burstLedger.Consume(owner, 20, burst.id + part, 401, consumed), "eight-way replay rejected");
+    }
+    Require(!burstLedger.Consume(owner, 20, 4008, 401, consumed), "ninth part rejected");
+    CombatShotLedger fallback;
+    fallback.Handshake(owner, 1);
+    ShotAction firstFallback; firstFallback.id = 1;
+    ShotAction secondFallback; secondFallback.id = 2;
+    Require(fallback.Issue(owner, firstFallback, 100) && fallback.Issue(owner, secondFallback, 101),
+        "legacy release budgets reuse the same ledger");
+    Require(fallback.OldestPending(owner, 102) == 1 && fallback.ConsumeOldest(owner, 102, consumed) &&
+        consumed.id == 1, "compatibility callbacks spend oldest real release");
+    Require(fallback.ConsumeOldest(owner, 102, consumed) && consumed.id == 2 &&
+        !fallback.ConsumeOldest(owner, 102, consumed), "compatibility queue is bounded by actual releases");
+    Require(fallback.Issue(owner, secondFallback, 200) &&
+        !fallback.ConsumeOldest(owner, 200 + LifetimeMs, consumed), "compatibility queue respects expiry");
     std::cout << "CombatShotLedgerTest passed\n";
 }

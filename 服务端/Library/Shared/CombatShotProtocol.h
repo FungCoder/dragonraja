@@ -5,18 +5,29 @@
 
 namespace DragonCombatShot
 {
-enum { Version = 2, HelloCommand = 31410, AckCommand = 31411,
+enum { Version = 3, HelloCommand = 31410, AckCommand = 31411,
     IssuedCommand = 31412, HitCommand = 31413, BurstIssuedCommand = 31414 };
 // New protocol policy, not a claimed timeout from the reference client.
 enum { LifetimeMs = 15000, MaxOutstanding = 64, MaxBurstParts = 8,
-    MultiFireSkill = 228, IcingBlastSkill = 239 };
+    MultiFireSkill = 228, FleetMissileSkill = 229, ConvertingArmorSkill = 230,
+    FireExtremeSkill = 232, IcingBlastSkill = 239, SharkMissileSkill = 241,
+    IceExtremeSkill = 244 };
 inline bool IsBurstSkill(unsigned skill)
 {
-    return skill == MultiFireSkill || skill == IcingBlastSkill;
+    return skill == MultiFireSkill || skill == IcingBlastSkill ||
+        skill == FireExtremeSkill || skill == IceExtremeSkill;
+}
+inline bool IsSkillShot(unsigned skill)
+{
+    return IsBurstSkill(skill) || skill == FleetMissileSkill ||
+        skill == ConvertingArmorSkill || skill == SharkMissileSkill;
 }
 inline unsigned BurstParts(unsigned skill, unsigned level)
 {
-    if (!IsBurstSkill(skill) || level < 1 || level > 3) return 0;
+    // Skill releases share a batch envelope, including single projectiles.
+    if (!IsSkillShot(skill) || level < 1 || level > 3) return 0;
+    if (skill == FireExtremeSkill || skill == IceExtremeSkill) return 8;
+    if (!IsBurstSkill(skill)) return 1;
     return level == 3 ? 5 : 3;
 }
 #pragma pack(push, 1)

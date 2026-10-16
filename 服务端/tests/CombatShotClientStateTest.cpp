@@ -75,5 +75,23 @@ int main()
     Require(state.BurstCount(five, MultiFireSkill, 502) == 5, "new animation does not clear a released burst");
     Require(!state.BurstCount(five, MultiFireSkill, 500 + LifetimeMs), "burst expiry");
     Require(!state.TakePart(five, 0, 5, 500 + LifetimeMs), "expired children cannot bind");
+    for (unsigned skill : {unsigned(FleetMissileSkill), unsigned(ConvertingArmorSkill),
+        unsigned(SharkMissileSkill), unsigned(FireExtremeSkill), unsigned(IceExtremeSkill)})
+    {
+        state.Begin(10); state.Accept({Version, 10});
+        burst.nonce = 10; burst.skill = uint16_t(skill); burst.level = 3;
+        burst.count = uint8_t(skill == FireExtremeSkill || skill == IceExtremeSkill ? 8 : 1);
+        for (unsigned part = 0; part < MaxBurstParts; ++part)
+            burst.actions[part] = part < burst.count ? 1000 + part : 0;
+        const unsigned count = burst.count;
+        burst.count = 9;
+        Require(!state.CanAcceptBurst(burst, 1), "oversized skill envelope rejected before array access");
+        burst.count = uint8_t(count);
+        Require(state.RecordBurst(burst, 1, 100), "one and eight-part skill envelopes");
+        Require(state.TakeBurst(2, skill, 100) == 1000, "one/eight-part root binds once");
+        for (unsigned part = 0; part < count; ++part)
+            Require(state.TakePart(1000, part, count, 100) == 1000 + part, "one/eight-part consumption");
+        Require(!state.TakePart(1000, 0, count, 100), "one/eight-part rebind rejected");
+    }
     std::cout << "CombatShotClientStateTest passed\n";
 }

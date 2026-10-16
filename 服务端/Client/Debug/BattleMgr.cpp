@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 #include "CombatShotClient.h"
+#include "../../Library/Shared/CombatShotProtocol.h"
 #include "BattleMgr.h"
 
 #include <algorithm>
@@ -617,6 +618,7 @@ void CBattleMgr::SendMagicResultWithAction(WORD wdEffect, LPCHARACTER pCaster, W
         return;
     }
 	
+    if (pCaster == Hero && DragonCombatShot::IsSkillShot(wdEffect)) return;
 	if (pCaster == Hero)
 	{
 		switch (wdEffect)

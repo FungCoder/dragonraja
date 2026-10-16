@@ -89,6 +89,28 @@ public:
         }
         return false;
     }
+    uint64_t OldestPending(const PreparationIdentity& identity, uint64_t now) const
+    {
+        if (!Nonce(identity)) return 0;
+        uint64_t oldest = 0;
+        for (const ShotAction& action : actions_)
+        {
+            if (!action.id || Expired(action, now)) continue;
+            for (unsigned part = 0; part < action.parts; ++part)
+                if (!(action.used_parts & (1u << part)))
+                {
+                    const uint64_t candidate = action.id + part;
+                    if (!oldest || candidate < oldest) oldest = candidate;
+                    break;
+                }
+        }
+        return oldest;
+    }
+    // Used only for explicitly retained legacy callbacks without a wire ID.
+    bool ConsumeOldest(const PreparationIdentity& identity, uint64_t now, ShotAction& result)
+    {
+        return Consume(identity, Nonce(identity), OldestPending(identity, now), now, result);
+    }
 private:
     static bool Expired(const ShotAction& action, uint64_t now)
     {

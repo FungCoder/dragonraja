@@ -18,9 +18,9 @@ $battleSource = $legacyEncoding.GetString([IO.File]::ReadAllBytes(
     (Join-Path $root '服务端/Client/Debug/Battle.cpp')))
 $generatorSource = ''
 foreach ($markers in @(
-    @('static int s_aAngle16[16]', 'static POINT s_aPoint[9]'),
+    @('static int s_aAngle8[8]', 'static POINT s_aPoint[9]'),
     @('static int s_aOffset[8][5]', 'static POINT s_aCircle[29]'),
-    @('void CBattle::EffectShoot(', 'void CBattle::EffectBreath('),
+    @('void CBattle::EffectSpread(', 'void CBattle::EffectBreath('),
     @('void CBattle::AddEffect(', 'void CBattle::ClearCrash('))) {
     $sectionStart = $battleSource.IndexOf($markers[0], [StringComparison]::Ordinal)
     if ($sectionStart -lt 0) { throw "Missing generator start: $($markers[0])" }
@@ -30,6 +30,22 @@ foreach ($markers in @(
 }
 [IO.File]::WriteAllBytes((Join-Path $output 'CombatBurstGeneratorProduction.inc'),
     $legacyEncoding.GetBytes($generatorSource))
+$effectSource = $legacyEncoding.GetString([IO.File]::ReadAllBytes(
+    (Join-Path $root '服务端/Client/Debug/Effect.cpp')))
+$effectStart = $effectSource.IndexOf('static void InsertMagicContext(', [StringComparison]::Ordinal)
+$effectEnd = $effectSource.IndexOf('void InsertEffect(', $effectStart, [StringComparison]::Ordinal)
+if ($effectStart -lt 0 -or $effectEnd -le $effectStart) { throw 'Missing production effect context' }
+[IO.File]::WriteAllBytes((Join-Path $output 'CombatShotEffectProduction.inc'),
+    $legacyEncoding.GetBytes($effectSource.Substring($effectStart, $effectEnd - $effectStart)))
+$combatSource = $legacyEncoding.GetString([IO.File]::ReadAllBytes(
+    (Join-Path $root '服务端/Client/Debug/CombatSys.cpp')))
+$rootNamespace = [regex]::Match($combatSource, '(?m)^namespace\s*\{')
+if (!$rootNamespace.Success) { throw 'Missing production root namespace' }
+$rootStart = $rootNamespace.Index
+$rootEnd = $combatSource.IndexOf('extern int g_CurrCharStatus;', $rootStart, [StringComparison]::Ordinal)
+if ($rootStart -lt 0 -or $rootEnd -le $rootStart) { throw 'Missing production root helper' }
+[IO.File]::WriteAllBytes((Join-Path $output 'CombatShotRootProduction.inc'),
+    $legacyEncoding.GetBytes($combatSource.Substring($rootStart, $rootEnd - $rootStart)))
 $vcvars = 'C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvars64.bat'
 if (!(Test-Path -LiteralPath $vcvars)) { throw 'C++ build tools not found' }
 $commands = @('@echo off', 'chcp 65001 >nul', "call `"$vcvars`" >nul", 'if errorlevel 1 exit /b 1')

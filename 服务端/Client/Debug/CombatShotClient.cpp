@@ -12,6 +12,11 @@
 using namespace battle;
 static_assert(MULTIPLE_FIRE == DragonCombatShot::MultiFireSkill, "Multi-fire canonical ID");
 static_assert(ICING_BLAST == DragonCombatShot::IcingBlastSkill, "Icing-blast canonical ID");
+static_assert(FLEET_MISSILE == DragonCombatShot::FleetMissileSkill, "Fleet-missile canonical ID");
+static_assert(CONVERTING_ARMOR == DragonCombatShot::ConvertingArmorSkill, "Converting-armor canonical ID");
+static_assert(SHARK_MISSILE == DragonCombatShot::SharkMissileSkill, "Shark-missile canonical ID");
+static_assert(FIRE_EXTREME == DragonCombatShot::FireExtremeSkill, "Fire-extreme canonical ID");
+static_assert(ICE_EXTREME == DragonCombatShot::IceExtremeSkill, "Ice-extreme canonical ID");
 
 namespace
 {
@@ -71,7 +76,7 @@ bool CombatShotReady()
 }
 bool CombatShotNeedsHandshake(int activeCombat, int bowType)
 {
-    return DragonCombatShot::IsBurstSkill(activeCombat) ||
+    return DragonCombatShot::IsSkillShot(activeCombat) ||
         (activeCombat == 0 && bowType != 1 && bowType != 2);
 }
 void CombatShotReceive(unsigned command, const void* data, size_t size)
@@ -93,10 +98,11 @@ void CombatShotReceive(unsigned command, const void* data, size_t size)
         t_server_throw_attack packet = {};
         packet.idCaster = burst.caster; packet.idTarget = burst.target;
         packet.nX = burst.x; packet.nY = burst.y; packet.nCombat = BYTE(burst.skill);
+        // Shark Missile chooses its animation duration from this level.
+        Hero->nActiveLevel = burst.level;
         g_mgrBattle.RecvThrowAttack(&packet);
         if (state.RecordBurst(burst, Hero->id, g_ClientTime))
         {
-            Hero->nActiveLevel = burst.level;
             Hero->excute_MagicNum = burst.skill;
         }
         return;

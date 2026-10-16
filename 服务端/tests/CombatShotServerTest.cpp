@@ -8,6 +8,7 @@
 #include <vector>
 #include <iostream>
 #include <cstdlib>
+#include <cstddef>
 #pragma pack(push, 1)
 #include "../Mapserver/HigherLayers/Network5.h"
 #pragma pack(pop)
@@ -177,24 +178,62 @@ int main()
     ResetCombatShotSession(1); Submit(hit);
     Require(settlements == 5 && !IssueCombatShot(1, 2, 100, 100), "map/disconnect requires fresh handshake");
     Require(!AllowLegacyThrowResult(1), "normal action cannot use unversioned callback");
-    connections[1].chrlst.active = 229;
+    connections[1].chrlst.active = 227;
     Require(!AllowLegacyThrowResult(1), "selecting a skill alone grants no legacy authority");
-    RegisterLegacyThrowRelease(1);
+    Require(!RegisterLegacyThrowRelease(1), "unknown active skill cannot open compatibility budget");
     connections[1].chrlst.active = 0;
-    Require(AllowLegacyThrowResult(1), "old advanced shot remains in flight after skill switch");
+    connections[1].chrlst.magic = FIRE_ARROW;
+    Require(RegisterLegacyThrowRelease(1) && AllowLegacyThrowResult(1), "real fallback release creates one budget");
+    t_client_throw_result legacyHit = {};
+    legacyHit.idTarget = 2; legacyHit.nX = legacyHit.nY = 100;
+    auto submitLegacy = [&] { RecvLegacyCombatShotHit(1, &legacyHit, sizeof(legacyHit)); };
+    submitLegacy(); submitLegacy();
+    Require(settlements == 6 && !AllowLegacyThrowResult(1), "legacy result spends exactly one real release");
+    Require(RegisterLegacyThrowRelease(1), "next fallback release");
+    std::thread legacyFirst(submitLegacy), legacyReplay(submitLegacy);
+    legacyFirst.join(); legacyReplay.join();
+    Require(settlements == 7, "legacy concurrent replay has one consumer");
+    Require(RegisterLegacyThrowRelease(1), "invalid legacy candidate release");
+    legacyHit.idTarget = 65000; submitLegacy(); legacyHit.idTarget = 2; submitLegacy();
+    Require(settlements == 7, "legacy invalid candidate spends budget before retry");
+    Require(RegisterLegacyThrowRelease(1), "expiring fallback release");
+    nowMs += LifetimeMs;
+    submitLegacy();
+    Require(settlements == 7 && !AllowLegacyThrowResult(1), "legacy release expires");
+    Require(RegisterLegacyThrowRelease(1), "legacy skill switch release");
+    connections[1].chrlst.active = FireExtremeSkill;
+    submitLegacy(); submitLegacy();
+    Require(settlements == 8, "skill switch retains only the already accepted fallback budget");
+    connections[1].chrlst.active = 0;
+    Require(RegisterLegacyThrowRelease(1), "legacy death release");
     CancelCombatShots(1);
-    Require(!AllowLegacyThrowResult(1), "death cancels legacy migration authority");
+    submitLegacy();
+    Require(settlements == 8 && !AllowLegacyThrowResult(1), "death cancels legacy budget");
+    for (unsigned index = 0; index < MaxOutstanding; ++index)
+        Require(RegisterLegacyThrowRelease(1), "legacy bounded queue accepts real releases");
+    Require(!RegisterLegacyThrowRelease(1), "legacy queue cannot exceed release limit");
+    CancelCombatShots(1);
+    Require(RegisterLegacyThrowRelease(1), "legacy session identity release");
+    ++connections[1].chrlst.total_id;
+    submitLegacy();
+    Require(settlements == 8 && !AllowLegacyThrowResult(1), "new character cannot spend old budget");
+    --connections[1].chrlst.total_id;
+    CancelCombatShots(1);
+    connections[1].chrlst.magic = 0;
     nowMs += 201;
     RecvCombatShotHello(1, &hello, sizeof(hello));
     unsigned expected = settlements.load();
-    for (unsigned skill : {unsigned(MultiFireSkill), unsigned(IcingBlastSkill)})
+    for (unsigned skill : {unsigned(MultiFireSkill), unsigned(IcingBlastSkill),
+        unsigned(FleetMissileSkill), unsigned(ConvertingArmorSkill), unsigned(SharkMissileSkill),
+        unsigned(FireExtremeSkill), unsigned(IceExtremeSkill)})
     for (unsigned level = 1; level <= 3; ++level)
     {
         const auto burst = IssueBurstFor(skill, level);
-        const unsigned count = level == 3 ? 5 : 3;
+        const unsigned count = skill == MultiFireSkill || skill == IcingBlastSkill ?
+            (level == 3 ? 5 : 3) : (skill == FireExtremeSkill || skill == IceExtremeSkill ? 8 : 1);
         Require(burst.skill == skill && burst.level == level && burst.count == count,
             "count comes from the server skill level");
-        RegisterLegacyThrowRelease(1);
+        Require(!RegisterLegacyThrowRelease(1), "migrated skill refuses unversioned budget");
         Require(!AllowLegacyThrowResult(1), "migrated burst cannot open legacy callback authority");
         connections[1].chrlst.active = 0;
         connections[1].chrlst.level = 1;
@@ -240,5 +279,17 @@ int main()
     const size_t beforeInvalid = sent.size();
     Require(!IssueCombatShot(1, 2, 100, 100) && sent.size() == beforeInvalid,
         "unlearned burst cannot mint projectile IDs");
+    connections[1].chrlst.active = 0;
+    connections[1].chrlst.magic = ICE_ARROW;
+    Require(RegisterLegacyThrowRelease(1), "ice arrow fallback budget");
+    unsigned char malformed[sizeof(legacyHit)];
+    memcpy(malformed, &legacyHit, sizeof(malformed));
+    malformed[offsetof(t_client_throw_result, bWanted)] = 2;
+    RecvLegacyCombatShotHit(1, malformed, sizeof(malformed));
+    Require(settlements == expected && AllowLegacyThrowResult(1), "invalid legacy bool is rejected before decoding");
+    RecvLegacyCombatShotHit(1, &legacyHit, sizeof(legacyHit) - 1);
+    Require(settlements == expected && AllowLegacyThrowResult(1), "short legacy frame cannot settle");
+    submitLegacy(); ++expected;
+    Require(settlements == expected && !AllowLegacyThrowResult(1), "valid ice fallback consumes budget");
     std::cout << "Production combat shot server tests passed\n";
 }

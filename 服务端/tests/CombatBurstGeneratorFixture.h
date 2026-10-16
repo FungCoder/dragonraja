@@ -51,9 +51,13 @@ class CBattle
 public:
     void EffectShoot(MAGICLIST*, int);
     void EffectMulti(MAGICLIST*, int);
+    void EffectSpread(MAGICLIST*);
     void AddEffect(EFFECT_INFO*);
     // Geometry is unchanged and outside authorization tests.
     void Coordinates(double, int&, int&) {}
 };
 #include "CombatBurstGeneratorProduction.inc"
+static int GetTargetHeight(int, LPCHARACTER target) { return target->height; }
+#include "CombatShotEffectProduction.inc"
+#include "CombatShotRootProduction.inc"
 #undef MemAlloc

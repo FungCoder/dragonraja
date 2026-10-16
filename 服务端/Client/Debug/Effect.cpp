@@ -4414,6 +4414,12 @@ static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target
 	
     const unsigned batchSkill = shotBatch ? CombatShotBurstSkill(shotBatch) : 0;
     if (shotBatch && !batchSkill) return;
+    const bool singlePart = shotBatch && CombatShotBurstCount(shotBatch, batchSkill) == 1;
+    if (singlePart)
+    {
+        shotAction = CombatShotTakePart(shotBatch, 0, 1);
+        if (!shotAction) return;
+    }
 	MemAlloc( TempList, sizeof(MAGICLIST));
 	if(TempList == NULL)
     {
@@ -4422,7 +4428,7 @@ static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target
     }
 	
 	TempList->shot_action = shotAction;
-    TempList->shot_batch = shotBatch;
+    TempList->shot_batch = singlePart ? 0 : shotBatch;
 	TempList->magicSerial = shotBatch ? int(batchSkill) : lpChar_Own->excute_MagicNum;			//실제 마법 번호(1~18?)
 	
 	TempList->magicNum = magicNum;									//실제 마법에 연결된 실행되고 있는 서브 마법 번호

@@ -567,7 +567,7 @@ void CBattleManager::RecvThrowAttack(WORD idCaster, t_client_throw_attack* pPack
             }
             else
             {
-                RegisterLegacyThrowRelease(idCaster);
+                if (!RegisterLegacyThrowRelease(idCaster)) return;
                 ::QueuePacket(connections, idCaster, &m_packet, 1);
             }
 			::CastMe2Other(idCaster, &m_packet);
@@ -578,8 +578,7 @@ void CBattleManager::RecvThrowAttack(WORD idCaster, t_client_throw_attack* pPack
 
 void CBattleManager::RecvThrowResult(WORD idCaster, t_client_throw_result* pPacket)
 {
-    if (!AllowLegacyThrowResult(idCaster)) return;
-    RecvAuthorizedThrowResult(idCaster, pPacket, -1);
+    RecvLegacyCombatShotHit(idCaster, pPacket, sizeof(*pPacket));
 }
 
 void CBattleManager::RecvAuthorizedThrowResult(WORD idCaster, t_client_throw_result* pPacket, int attackKind)

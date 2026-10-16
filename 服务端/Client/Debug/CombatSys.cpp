@@ -141,7 +141,8 @@ void CCombatSys::Effect(MAGICLIST* pEffect)
 		case FIRE_EXTREME:
 		case ICE_EXTREME:
 			{
-				EffectSpread(pEffect);
+                if (!pEffect->shot_batch || CombatShotBurstCount(pEffect->shot_batch, nCombat) == 8)
+                    EffectSpread(pEffect);
 				break;
 			}
 		case DARK_EXTREME:
@@ -388,12 +389,12 @@ void CCombatSys::Effect(LPCHARACTER pCaster, LPCHARACTER pTarget)
 			}
 		case FLEET_MISSILE:
 			{
-				InsertMagic(pCaster, pTarget, 575, 0, 0, 0, pTarget->x, pTarget->y);
+				InsertBurstRoot(pCaster, pTarget, nCaster, 575, pTarget->x, pTarget->y);
 				break;
 			}
 		case CONVERTING_ARMOR:
 			{
-				::InsertMagic(pCaster, pTarget, 29, 0, 0, 0, pTarget->x, pTarget->y);
+				InsertBurstRoot(pCaster, pTarget, nCaster, 29, pTarget->x, pTarget->y);
 				break;
 			}
 		case HORN_OF_ICEBERG:
@@ -430,7 +431,7 @@ void CCombatSys::Effect(LPCHARACTER pCaster, LPCHARACTER pTarget)
             }
 		case FIRE_EXTREME:
 			{
-				::InsertMagic(pCaster, pTarget, 513, 0, 0, 0, pTarget->x, pTarget->y);
+				InsertBurstRoot(pCaster, pTarget, nCaster, 513, pTarget->x, pTarget->y);
 				break;
 			}
 		case ICING_BLAST:
@@ -440,7 +441,7 @@ void CCombatSys::Effect(LPCHARACTER pCaster, LPCHARACTER pTarget)
             }
 		case ICE_EXTREME:
 			{
-				::InsertMagic(pCaster, pTarget, 514, 0, 0, 0, pTarget->x, pTarget->y);
+				InsertBurstRoot(pCaster, pTarget, nCaster, 514, pTarget->x, pTarget->y);
 				break;
 			}
 		case SHARK_MISSILE:
@@ -449,12 +450,12 @@ void CCombatSys::Effect(LPCHARACTER pCaster, LPCHARACTER pTarget)
 				{
 				case ACTION_ATTACK_BOW:
 					{
-						::InsertMagic(pCaster, pTarget, 38, 0, 0, 0, pTarget->x, pTarget->y);
+						InsertBurstRoot(pCaster, pTarget, nCaster, 38, pTarget->x, pTarget->y);
 						break;
 					}
 				case ACTION_THROW:
 					{
-						::InsertMagic(pCaster, pTarget, 189, 0, 0, 0, pTarget->x, pTarget->y);
+						InsertBurstRoot(pCaster, pTarget, nCaster, 189, pTarget->x, pTarget->y);
 						break;
 					}
 				}

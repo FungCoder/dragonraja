@@ -174,7 +174,7 @@ void CBattle::EffectSpread(MAGICLIST* pMagic)
 		memset(&infEffect, 0, sizeof(EFFECT_INFO));
 		infEffect.pCaster = pCaster;
 		infEffect.pTarget = pTarget;
-		infEffect.nType = pCaster->excute_MagicNum;
+		infEffect.nType = pMagic->shot_batch ? pMagic->magicSerial : pCaster->excute_MagicNum;
 		infEffect.nEffect = pMagic->next_Effect;
 		infEffect.nSub = pMagic->magicSubNum;
 		infEffect.nDir = nDir;
@@ -182,6 +182,11 @@ void CBattle::EffectSpread(MAGICLIST* pMagic)
 		infEffect.nSrcY = pMagic->y;
 		infEffect.nDstX = pMagic->x + nOffX;
 		infEffect.nDstY = pMagic->y + nOffY;
+        if (pMagic->shot_batch)
+        {
+            infEffect.shotAction = CombatShotTakePart(pMagic->shot_batch, unsigned(i), 8);
+            if (!infEffect.shotAction) continue;
+        }
 		AddEffect(&infEffect);
 	}
 }

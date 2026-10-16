@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <vector>
+#pragma comment(lib, "user32.lib")
 #pragma pack(push, 1)
 #include "../Client/Debug/Network5.h"
 #pragma pack(pop)
@@ -29,7 +30,7 @@ struct t_packet
 };
 static std::vector<t_packet> sent;
 static void QueuePacket(t_packet* packet, int) { sent.push_back(*packet); }
-static unsigned animations = 0, warnings = 0;
+static unsigned animations = 0, warnings = 0, animationLevel = 0;
 struct BattleFixture
 {
     void RecvThrowAttack(t_server_throw_attack* packet)
@@ -37,6 +38,7 @@ struct BattleFixture
         // This hook is also present in the real battle handler.
         CombatShotForgetPending();
         Hero->nActiveCombat = packet->nCombat;
+        animationLevel = Hero->nActiveLevel;
         ++animations;
     }
     void Message(int, const char*, ...) { ++warnings; }
@@ -56,7 +58,7 @@ int main()
         "ordinary bow and thrown weapon require secure capability");
     Require(CombatShotNeedsHandshake(MultiFireSkill, 0) && CombatShotNeedsHandshake(IcingBlastSkill, 3),
         "migrated burst skills require negotiated capability");
-    Require(!CombatShotNeedsHandshake(229, 0) && !CombatShotNeedsHandshake(0, 1) &&
+    Require(!CombatShotNeedsHandshake(227, 0) && !CombatShotNeedsHandshake(0, 1) &&
         !CombatShotNeedsHandshake(0, 2), "explicit advanced/magic-arrow migration scope");
     Require(sent.size() == 1 && sent.back().h.header.type == HelloCommand,
         "begin handshake after map ready");
@@ -139,7 +141,9 @@ int main()
     }
     Require(CombatShotBurstCount(batch, MultiFireSkill) == 0, "fully bound batch is retired");
     uint64_t nextAction = 300;
-    for (unsigned skill : {unsigned(MultiFireSkill), unsigned(IcingBlastSkill)})
+    for (unsigned skill : {unsigned(MultiFireSkill), unsigned(IcingBlastSkill),
+        unsigned(FleetMissileSkill), unsigned(ConvertingArmorSkill), unsigned(SharkMissileSkill),
+        unsigned(FireExtremeSkill), unsigned(IceExtremeSkill)})
         for (unsigned level = 1; level <= 3; ++level)
         {
             burst.skill = uint16_t(skill); burst.level = uint8_t(level);
@@ -148,25 +152,43 @@ int main()
                 burst.actions[part] = part < burst.count ? nextAction + part : 0;
             const unsigned previousAnimations = animations;
             CombatShotReceive(BurstIssuedCommand, &burst, sizeof(burst));
-            Require(animations == previousAnimations + 1 && Hero->nActiveLevel == level,
-                "both skills accept every valid server level");
-            Require(CombatShotTakeBurst(1, 2, skill) == nextAction, "matrix root binding");
-            MAGICLIST root = {};
-            root.lpChar_Own = Hero; root.lpChar_Target = Hero;
-            root.magicSerial = int(skill); root.next_Effect = skill == MultiFireSkill ? 184 : 189;
-            root.shot_batch = nextAction;
+            Require(animations == previousAnimations + 1 && Hero->nActiveLevel == level &&
+                animationLevel == level && CombatShotNeedsHandshake(skill, 0),
+                "all skill animations use server level before playback");
+            const int effect = skill == FleetMissileSkill ? 575 :
+                (skill == ConvertingArmorSkill ? 29 :
+                (skill == SharkMissileSkill ? 38 :
+                (skill == MultiFireSkill || skill == FireExtremeSkill ? 513 : 514)));
+            g_lpET[513].next_Effect = 184; g_lpET[514].next_Effect = 189;
+            CharacterFixture target; target.id = 2;
             Hero->excute_MagicNum = 999; Hero->nActiveLevel = 0;
             generated.clear();
+            InsertBurstRoot(Hero, &target, skill, effect, 100, 100);
+            Require(generated.size() == 1 && generated[0].magicSerial == skill,
+                "actual root helper and effect context preserve server skill snapshot");
+            MAGICLIST root = generated[0];
+            InsertBurstRoot(Hero, &target, skill, effect, 100, 100);
+            Require(generated.size() == 1, "root cannot bind twice or fall back to legacy");
             CBattle generator;
-            if (skill == MultiFireSkill) generator.EffectShoot(&root, burst.count);
-            else generator.EffectMulti(&root, burst.count);
+            if (burst.count > 1)
+            {
+                generated.clear();
+                if (skill == MultiFireSkill) generator.EffectShoot(&root, burst.count);
+                else if (skill == IcingBlastSkill) generator.EffectMulti(&root, burst.count);
+                else generator.EffectSpread(&root);
+            }
             Require(generated.size() == burst.count, "real generators create server-authorized count");
             for (unsigned part = 0; part < burst.count; ++part)
                 Require(generated[part].shot_action == nextAction + part &&
                     generated[part].shot_batch == 0 && generated[part].magicSerial == skill,
                     "real AddEffect preserves child ID and snapshot after skill changes");
-            generator.EffectShoot(&root, burst.count);
-            generator.EffectMulti(&root, burst.count);
+            if (burst.count == 8) generator.EffectSpread(&root);
+            else if (burst.count > 1)
+            {
+                generator.EffectShoot(&root, burst.count);
+                generator.EffectMulti(&root, burst.count);
+            }
+            else Require(!CombatShotTakePart(nextAction, 0, 1), "single root consumes its sole child");
             Require(generated.size() == burst.count, "repeated generators cannot create legacy children");
             nextAction += MaxBurstParts;
         }
