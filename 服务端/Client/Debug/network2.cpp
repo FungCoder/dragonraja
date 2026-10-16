@@ -1,4 +1,5 @@
-#include "stdafx.h"																	
+#include "stdafx.h"
+#include "QuestTrace.h"
 #include "String.h"
 #include "mmsystem.h"														
 #include "Dragon.h"	
@@ -194,7 +195,17 @@ int CheckHandleByKein( t_packet *p )
 	case CMD_REQ_MAN_TO_MAN_RESULT	:	RecvReqManToManResult( p->u.kein.default_char ); break;
 	case CMD_REQ_MAN_TO_MAN_CONSENT :	RecvStartManToMan( p->u.kein.default_short_int ); break;
 		
-	case CMD_REP_QUEST_INDEX		:	RecvQuestIndex( &p->u.kein.rep_quest_index ); break;
+	case CMD_REP_QUEST_INDEX		:
+        {
+            const unsigned count = static_cast<unsigned char>(p->u.kein.rep_quest_index.max);
+            if (p->h.header.size >= 1 && count <= 14 &&
+                p->h.header.size == 1 + count * sizeof(k_quest_unit))
+            {
+                RecvQuestIndex(&p->u.kein.rep_quest_index);
+                QuestTraceReceive(&p->u.kein.rep_quest_index, p->h.header.size);
+            }
+            break;
+        }
 	case CMD_REQ_MAN_TO_MAN_REFUSAL	:	RecvReqManToManRefusal( ); break;
 		
 	case CMD_FIGHT_MAP_ADD_OK		:	RecvFightMapAddOk( p); break;

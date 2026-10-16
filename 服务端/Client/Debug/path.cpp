@@ -102,7 +102,9 @@ BOOL PathBuild( LPCHARACTER lpCharacter )
 	{
 		if ( lpCharacter->pathcount >= MAX_SHORTPATH )
 		{
-			break;
+			lpCharacter->pathcount = 0;
+			PathDestroy();
+			return FALSE;
 		}
 	
 		lpspNode = lpspNode->lpParent;

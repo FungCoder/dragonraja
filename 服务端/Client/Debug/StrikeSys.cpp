@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 #include "StrikeSys.h"
+#include "CombatShotClient.h"
 
 #include <math.h>
 #include "Char.h"
@@ -11,6 +12,16 @@
 #include "Effect.h"
 #include "Hong_Sub.h"
 using namespace battle;
+
+namespace
+{
+void InsertIssuedShot(LPCHARACTER caster, LPCHARACTER target, int effect, int x, int y)
+{
+    const uint64_t action = CombatShotTake(caster->id, target->id, effect);
+    ::InsertMagicWithAction(caster, target, effect, 0, 0, 0, x, y, false, 0, false, 0, action);
+}
+}
+
 
 //////////////////////////////////////////////////////////////////////
 // Global Member
@@ -246,12 +257,12 @@ void CStrikeSys::Shoot(LPCHARACTER pCaster, LPCHARACTER pTarget)
 			case 162:
 			case 172:
 				{
-					::InsertMagic(pCaster, pTarget, THROW_FIRE_ARROW, 0, 0, 0, nX, nY);
+					InsertIssuedShot(pCaster, pTarget, THROW_FIRE_ARROW, nX, nY);
 					break;
 				}
 			default:
 				{
-					::InsertMagic(pCaster, pTarget, THROW_ARROW, 0, 0, 0, nX, nY);
+					InsertIssuedShot(pCaster, pTarget, THROW_ARROW, nX, nY);
 					break;
 				}
 			}
@@ -274,7 +285,7 @@ void CStrikeSys::Shoot(LPCHARACTER pCaster, LPCHARACTER pTarget)
 			else
 			{
 				pCaster->bow_Type = 0;
-				::InsertMagic(pCaster, pTarget, THROW_ARROW, 0, 0, 0, nX, nY);
+				InsertIssuedShot(pCaster, pTarget, THROW_ARROW, nX, nY);
 			}
 			
 			break;
@@ -295,7 +306,7 @@ void CStrikeSys::Shoot(LPCHARACTER pCaster, LPCHARACTER pTarget)
 			else
 			{
 				pCaster->bow_Type = 0;
-				::InsertMagic(pCaster, pTarget, THROW_ARROW, 0, 0, 0, nX, nY);
+				InsertIssuedShot(pCaster, pTarget, THROW_ARROW, nX, nY);
 			}
 			
 			break;
@@ -347,5 +358,5 @@ void CStrikeSys::Throw(LPCHARACTER pCaster, LPCHARACTER pTarget)
 	case 177: nEffect = THROW_ICE_KNIFE; break;
 	}
 
-	::InsertMagic(pCaster, pTarget, nEffect, 0, 0, 0, nX, nY);
+	InsertIssuedShot(pCaster, pTarget, nEffect, nX, nY);
 }	//> CSD-031014

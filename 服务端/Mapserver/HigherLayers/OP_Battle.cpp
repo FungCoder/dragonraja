@@ -1,5 +1,6 @@
 ﻿#include "..\stdafx.h"
 #include "DefaultHeader.h"
+#include "CombatShotServer.h"
 
 #include "../LowerLayers/mylog.h" //!!
 #include "CItem.h"
@@ -595,6 +596,7 @@ void killCharacter( CHARLIST *a,CHARLIST *d )
 	
 	if( d->bAlive >= DEAD_ ) return;
 	
+	if (d->IsPlayer()) CancelCombatShots(d->GetServerID());
 	d->bAlive		= DEAD_;	
 	
 	if( d->SprType != SPRITETYPE_NPC )

@@ -1,5 +1,8 @@
 # Private runtime data and deployment settings
 *.ps1
+!/服务端/tests/TestCombatShotServer.ps1
+!/服务端/tests/TestClientBattleIngress.ps1
+!/服务端/tests/TestFeaturePortSafety.ps1
 *.cs
 *.csproj
 **/runtime/

@@ -10,6 +10,7 @@
 \*****************************************************************************/
 
 #include "stdafx.h"
+#include "AutoPlayExtras.h"
 #include <Ddraw.h>
 #include <Math.h>
 
@@ -1303,7 +1304,7 @@ void h_DisplayPC( LPCHARACTER ch, int shadow )
 	
 	if (ch->HorseNo && ch->viewtype!=VIEWTYPE_GHOST_)						// LTS HORSERIDER TEMP
 	{
-		g_HorseRider.DrawHorseRider(ch);	//	h_DisPlay_HorseRider(ch,shadow);
+		if (!DragonAutoPlayClient::HidePlayer(ch)) g_HorseRider.DrawHorseRider(ch);	//	h_DisPlay_HorseRider(ch,shadow);
 		return;
 	}
 	
@@ -1326,7 +1327,7 @@ void h_DisplayPC( LPCHARACTER ch, int shadow )
 	if(SysInfo.notconectserver)
 	{
 		if( ch->nCurrentAction == ACTION_DIE && ch->dieani != 0 )
-			PutDeadEffectBottom(ch);
+			if (!DragonAutoPlayClient::HidePlayer(ch)) PutDeadEffectBottom(ch);
 		
 		HprintBold( x - Mapx, y - Mapy, RGB( 0xff, 0xff, 0xff ), 0, "xl:%d  yl:%d", ch->sp->xl, ch->sp->yl );
 	}
@@ -1334,7 +1335,7 @@ void h_DisplayPC( LPCHARACTER ch, int shadow )
 #endif
 	{
 		if( (ch->blood_Set == true || ch->dieani!=0 ) && ch->nCurrentAction==ACTION_DIE )
-			PutDeadEffectBottom(ch);
+			if (!DragonAutoPlayClient::HidePlayer(ch)) PutDeadEffectBottom(ch);
 	}
 	
 	if (shadow == 0)
@@ -1349,7 +1350,7 @@ void h_DisplayPC( LPCHARACTER ch, int shadow )
 		case VIEWTYPE_FROZEN_:
 		case VIEWTYPE_CURSE_:
 			{
-				PutCompressedImageShadow(x - Mapx - 1,y - Mapy - 3, ch->sp);
+				if (!DragonAutoPlayClient::HidePlayer(ch)) PutCompressedImageShadow(x - Mapx - 1,y - Mapy - 3, ch->sp);
 				return;
 			}
 		}
@@ -1361,6 +1362,8 @@ void h_DisplayPC( LPCHARACTER ch, int shadow )
 	ch->sp2		= &(cas+ac2)->sp[ dir][ sprc];
 	ch->sp3		= &(cas+ac3)->sp[ dir][ sprc];
 	ch->sp4		= &(cas+ac4)->sp[ dir][ sprc];
+	// Keep current hit-test sprites even when only the drawing is hidden.
+	if (DragonAutoPlayClient::HidePlayer(ch)) return;
 	
 	//----------------
 	int sx, sy, ex, ey;

@@ -7,6 +7,7 @@
 
 #if _MSC_VER > 1000
 #pragma once
+#include <stdint.h>
 #endif // _MSC_VER > 1000
 
 #pragma pack (push,1)
@@ -86,7 +87,8 @@ public:
 	void SendMagicSelect(BYTE nMagic);  // CSD-TW-030606
 	void SendMagicCasting(BYTE nMagic); // CSD-TW-030606
 	void SendMagicExecute(BYTE nMagic, LPCHARACTER pTarget, int nX, int nY); // CSD-TW-030606
-	void SendMagicResult(WORD wdEffect, LPCHARACTER pCaster, WORD idTarget, int nX, int nY); // CSD-031007
+	void SendMagicResult(WORD wdEffect, LPCHARACTER pCaster, WORD idTarget, int nX, int nY);
+	void SendMagicResultWithAction(WORD wdEffect, LPCHARACTER pCaster, WORD idTarget, int nX, int nY, uint64_t action); // CSD-031007
 	
 	void SendCombatClear(); // CSD-021128
 	void SendCombatObtain(LPCHARACTER pMaster, BYTE nPara, BYTE nX, BYTE nY, BYTE nPoint);

@@ -1036,7 +1036,7 @@ void CQuestInMap::GiveRequitalByCn( const int cn, table_requital_list& table)
 	if(table.Item_no != 0)	//item
 	{
 		//<! BBD 040322
-		if(SetRareItemInvPc( cn, table.Item_no, table.Item_Min, table.Item_Max, table.Item_rare_count, 0, table.Item_rare_type ))
+		if(SetRareItemInvPc( cn, table.Item_no, table.Item_Min, table.Item_Max, table.Item_rare_count, 0, table.Item_rare_type ) == 1)
 		{
 			// 己傍
 			::OutMessage(ch,4,120);//"酒捞袍捞 牢亥配府肺 瘤鞭登菌嚼聪促.
@@ -1045,6 +1045,8 @@ void CQuestInMap::GiveRequitalByCn( const int cn, table_requital_list& table)
 		{
 			// 角菩
 			::OutMessage(ch,2,13);//"牢亥配府 傍埃捞 面盒摹 臼嚼聪促."
+			// Item grant failed: retain quest progress and all later rewards.
+			return;
 		}
 		//> BBD 040322
 	}

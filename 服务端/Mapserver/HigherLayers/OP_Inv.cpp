@@ -3,6 +3,7 @@
 #include "CItem.h"
 #include "Op_Magic.h"
 #include "WeatherControl.h"
+#include "GameplaySafety.h"
 
 
 extern CItem_List Item_Ref ;
@@ -23,6 +24,12 @@ const char const equip_able[9]={2, 3, 4, 5, 6, 7, 8, 8, 9 } ;
 //////////////////////////////////////////////////////////////////////////
 bool exist(int item_no, int char_id, POS &source)
 {
+	if (char_id <= DB_DEMON || char_id >= DRAGON_MAX_CONNECTIONS ||
+		!CheckServerId(char_id)) return NOT;
+	if (source.type >= HAND && source.type <= BANK &&
+		!GetItemByPOS(char_id, source)) return NOT;
+	if (source.type == GROUND &&
+		!IsGameplayIndexValid(source.p3, MAX_ITEM_LIST)) return NOT;
 	if( item_no == IN_COINS || item_no == IN_COIN )			// 0222 YGI
 	{
 		ItemAttr *temp = GetItemByPOS( char_id, source );
@@ -76,8 +83,11 @@ bool exist(int item_no, int char_id, POS &source)
 		case OTHER_CH : {					//0105
 //<soto-tai
 							CHARLIST	*ch;
-							if( source.p3 < 10000 )	ch = &connections[source.p3].chrlst;
-							else	ch = &NPCList[ source.p3-10000 ];
+							if (source.p3 < 10000) ch = CheckServerId(source.p3);
+							else if (IsGameplayIndexValid(source.p3 - 10000, MAX_NPC_LIST))
+								ch = &NPCList[source.p3 - 10000];
+							else return NOT;
+							if (!ch) return NOT;
 
 							int a, b, c;
 							for( a=0; a<3; a++ )
@@ -197,12 +207,22 @@ void SendRareDisplayEffect(CHARLIST *ch)
 // 맵과의 아이템 이동을 지원하기 위해서는 dest의 p1, p2에 x,y가 들어와야 한다.
 int exchangePOS_of_Item(const int char_id, t_chr_status_info *cstatus, const POS SourcePos, const POS DestPos)		// 0624 YGI
 {
+	if (char_id <= DB_DEMON || char_id >= DRAGON_MAX_CONNECTIONS) return 0;
 	CHARLIST *hero = CheckServerId( char_id );
 	if( !hero ) 
 	{
 		return 0;
 	}
 
+	// Validate both storage positions before any equipment or item mutation.
+	if (SourcePos.type >= HAND && SourcePos.type <= BANK &&
+		!GetItemByPOS(hero, SourcePos)) return 0;
+	if (DestPos.type >= HAND && DestPos.type <= BANK &&
+		!GetItemByPOS(hero, DestPos)) return 0;
+	if (SourcePos.type == GROUND &&
+		!IsGameplayIndexValid(SourcePos.p3, MAX_ITEM_LIST)) return 0;
+	if (SourcePos.type == OTHER_CH && SourcePos.p3 >= 10000 &&
+		!IsGameplayIndexValid(SourcePos.p3 - 10000, MAX_NPC_LIST)) return 0;
 	ItemAttr tu = {0,}, *pSourceItem=NULL;	
 	int item_id ;
 	POS other_pos;			
@@ -260,7 +280,8 @@ int exchangePOS_of_Item(const int char_id, t_chr_status_info *cstatus, const POS
 						const int a= SourcePos.p2 /100;
 						const int b = (SourcePos.p2 - a*100)/10;
 						const int c = SourcePos.p2 % 10;
-						pSourceItem= &ch->inv[a][b][c] ;
+						pSourceItem = GetGameplayArrayItem(ch->inv, a, b, c);
+						if (!pSourceItem) return 0;
 						::SetItemPos( INV, a, b, c, &other_pos );
 						break;
 					}
@@ -771,37 +792,14 @@ void getItemIndex(int item_no, int &type, int &index)
 
 void getItemIndex(int char_id, POS source, int &type, int &index)
 {
-	//int type, index ;
-
-	switch(source.type) {
-		case HAND:
-			type= connections[char_id].chrlst.handheld.item_no / 1000 ;
-			index= connections[char_id].chrlst.handheld.item_no % 1000 ;
-			break ;
-		
-		case INV:
-			type= connections[char_id].chrlst.inv[source.p1][source.p2][source.p3].item_no / 1000 ;
-			index= connections[char_id].chrlst.inv[source.p1][source.p2][source.p3].item_no % 1000 ;
-			break ;
-
-		case QUICK:
-			type= connections[char_id].chrlst.quick[source.p3].item_no / 1000 ;
-			index= connections[char_id].chrlst.quick[source.p3].item_no % 1000 ;
-			break ;
-
-		case EQUIP:
-			type= connections[char_id].chrlst.equip[source.p3].item_no / 1000 ;
-			index= connections[char_id].chrlst.equip[source.p3].item_no % 1000 ;
-			break ;
-
-		default:
-			type= 0 ;
-			index= 0 ;
-			break ;
-			
-	}
+	type = 0;
+	index = 0;
+	if (source.type != HAND && source.type != INV &&
+		source.type != QUICK && source.type != EQUIP) return;
+	ItemAttr* item = GetItemByPOS(char_id, source);
+	if (!item) return;
+	getItemIndex(item->item_no, type, index);
 }
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // 함수설명: 아이템 분리(개수가 있는 아이템일 경우; 돈, 씨앗등의)
@@ -816,6 +814,8 @@ void getItemIndex(int char_id, POS source, int &type, int &index)
 
 int departItem(int char_id, POS source, POS dest, int dec_val)
 {
+	if (!GetItemByPOS(char_id, source) ||
+		(dest.type == INV && !GetItemByPOS(char_id, dest))) return NOT;
 	ItemAttr tu, *source_ptr ;
 	int type, index ;
 

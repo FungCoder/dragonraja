@@ -1315,12 +1315,19 @@ int SelectSkill( int skillno )
 //	CursorSpriteNo( 879 );
 	return 0;								
 }											
-int CheckSkill( void )
+static int CheckSkillAt(int targetX, int targetY, LPCHARACTER targetCharacter, LPITEMGROUND targetItem, bool fromMouse)
 {		
 	int x,y;
 	int dis;
 	int mx, my;				
 				
+	// Explicit coordinates share the manual target/tool/action path.
+	if (!Hero || SkillNo < 0 || SkillNo >= MAX_SKILL_ ||
+		targetX < 0 || targetY < 0 ||
+		targetX / TILE_SIZE >= g_Map.file.wWidth ||
+		targetY / TILE_SIZE >= g_Map.file.wHeight ||
+		targetX / TILE_SIZE >= VILLAGE_SIZE ||
+		targetY / TILE_SIZE >= VILLAGE_SIZE) return 0;
 	if( IsDead( Hero ) ) return 0;
 				
 	if( SkillStatus == SKILL_OFF )							return 0;
@@ -1343,7 +1350,7 @@ int CheckSkill( void )
 	if( SkillNo >= MAX_SKILL_ ){ SkillStatus = SKILL_OFF;	return 0;	}
 	int ret = false;
 				
-	if( Moy - Mapy > GAME_SCREEN_YSIZE ) return 0;
+	if( fromMouse && targetY - Mapy > GAME_SCREEN_YSIZE ) return 0;
 				
 	x = Hero->x;
 	y = Hero->y;
@@ -1357,7 +1364,7 @@ int CheckSkill( void )
 	}			
 					
 	//  너무 멀리 있으면 그곳으로 이동한다. 
-	dis = (Mox-x)*(Mox-x)+(Moy-y)*(Moy-y);  
+	dis = (targetX-x)*(targetX-x)+(targetY-y)*(targetY-y);
 	
 	//1017 zhh
 	if( (SkillNo==28 || SkillNo==30) && dis<64*64*8 )
@@ -1365,7 +1372,7 @@ int CheckSkill( void )
 	
 	if( dis > 64 * 64 ) 
 	{			
-		if( ReturnXYNearPosition( &x, &y, &mx, &my, 64, Hero, Mox, Moy ))
+		if( ReturnXYNearPosition( &x, &y, &mx, &my, 64, Hero, targetX, targetY ))
 		{		
 			Hero->destx = mx, Hero->desty = my;
 			if ( PathBuild( Hero ) )
@@ -1414,35 +1421,35 @@ int CheckSkill( void )
 	switch( targettype )
 	{
 	case SKILLTARGETTYPE_TABLE_ :	return 0;
-	case SKILLTARGETTYPE_ITEM_	:	if( CursorCheckedItem == NULL ) 
+	case SKILLTARGETTYPE_ITEM_	:	if( targetItem == NULL )
 									{
 										//1024 zhh
 										AddCurrentStatusMessage( 125,100,255, lan->OutputMessage(2,196));
 									//	AddCurrentStatusMessage( 125,100,255, "기술에 사용될 Item을 클릭하세요 .");
 										return 0; 
 									}
-									target_id = CursorCheckedItem->server_id; 
-									target_item_no = CursorCheckedItem->no;
+									target_id = targetItem->server_id;
+									target_item_no = targetItem->no;
 
 									//1005 zhh
-									Skill_CursorCheckedItem = CursorCheckedItem;
+									Skill_CursorCheckedItem = targetItem;
 				break;
-	case SKILLTARGETTYPE_CHAR_	:	if( g_GameInfo.lpcharacter == NULL ) 
+	case SKILLTARGETTYPE_CHAR_	:	if( targetCharacter == NULL )
 									{
 										//1024 zhh
 										AddCurrentStatusMessage( 125,100,255, lan->OutputMessage(2,197) );
 									//	AddCurrentStatusMessage( 125,100,255, "기술을 걸 캐릭터를 클릭하세요." );
 										return 0;
 									}
-									target_id = g_GameInfo.lpcharacter->id;
-									memcpy(TargetName, g_GameInfo.lpcharacter->name,30);//020531 lsw
+									target_id = targetCharacter->id;
+									memcpy(TargetName, targetCharacter->name,30);//020531 lsw
 				break;
 
 	case SKILLTARGETTYPE_MAP_	:	target_id = 0;   
 				
 				break;
 
-	case SKILLTARGETTYPE_HERO_	:	if(	g_GameInfo.lpcharacter != Hero ) 
+	case SKILLTARGETTYPE_HERO_	:	if(	targetCharacter != Hero )
 									{
 										//1024 zhh
 										AddCurrentStatusMessage( 125,100,255, lan->OutputMessage(2,198) );
@@ -1457,7 +1464,7 @@ int CheckSkill( void )
 									{
 										return 0;
 									}
-									SendSkillInfo( SkillNo, Mox, Moy, targettype, SkillItemNo, SkillItemPOS );
+									SendSkillInfo( SkillNo, targetX, targetY, targettype, SkillItemNo, SkillItemPOS );
 				break;
 	}
 	
@@ -1470,32 +1477,32 @@ int CheckSkill( void )
 				//	AddCurrentStatusMessage( 255,255,255, "기술를 자신에게 사용하였습니다. 당신은 실수하여 창피해 합니다." );
 					return 1;
 				}
-				if( target_id < 10000 || g_GameInfo.lpcharacter->eventnpc )//soto-Steal수정. 몬스터에서만 가능하다.
+				if( target_id < 10000 || targetCharacter->eventnpc )//soto-Steal수정. 몬스터에서만 가능하다.
 				{
 					//1024 zhh
 					AddCurrentStatusMessage( 255,255,255, lan->OutputMessage(2,202) );
 				//	AddCurrentStatusMessage( 255,255,255, "훔치기 기술은 Player에게만 사용할 수 있습니다." );
 					return 1;
 				}
-				SendSkillInfo( SkillNo, Mox, Moy, targettype, target_id, target_item_no, TargetName);//020531 lsw
+				SendSkillInfo( SkillNo, targetX, targetY, targettype, target_id, target_item_no, TargetName);//020531 lsw
 		break;
 
 		// Harvest..
 	case 24 :	{
-					if( CursorCheckedItem == NULL ) break;
+					if( targetItem == NULL ) break;
 
-					CItem *t = ItemUnit( CursorCheckedItem->no/1000, CursorCheckedItem->no%1000 );	
+					CItem *t = ItemUnit( targetItem->no/1000, targetItem->no%1000 );
 					if( t )
 					if( t->GetItemKind() == IK_SEED )
 					{
-						SendSkillInfo( SkillNo, Mox, Moy, targettype, CursorCheckedItem->server_id );
+						SendSkillInfo( SkillNo, targetX, targetY, targettype, targetItem->server_id );
 						return 1;	
 					}
 				}
 		break;		
 					
 	case 28 :   //	낚시.. 
-				if( TileMap[ Mox/TILE_SIZE][Moy/ TILE_SIZE].attr_river == 0 ) 
+				if( TileMap[ targetX/TILE_SIZE][targetY/ TILE_SIZE].attr_river == 0 )
 				{	
 					//1024 zhh	
 					AddCurrentStatusMessage( 255,155,155,lan->OutputMessage(2,203), SkillTable[SkillNo].Skill_Minute );
@@ -1504,12 +1511,12 @@ int CheckSkill( void )
 				}	
 				else
 				{
-					//SendSkillGauge( Mox, Moy, SkillNo );
-					SendSkillInfo( SkillNo, Mox, Moy, targettype, target_id );
+					//SendSkillGauge( targetX, targetY, SkillNo );
+					SendSkillInfo( SkillNo, targetX, targetY, targettype, target_id );
 				}
 		break;		
 						
-	default :	SendSkillInfo( SkillNo, Mox, Moy, targettype, target_id ,target_item_no,TargetName);//020531 lsw
+	default :	SendSkillInfo( SkillNo, targetX, targetY, targettype, target_id ,target_item_no,TargetName);//020531 lsw
 			return 1;	
 	}
 					
@@ -1520,6 +1527,58 @@ SKILL_FAIL_ :
 	return 0;//Skill
 }		
 
+int CheckSkill(void)
+{
+    return CheckSkillAt(Mox, Moy, g_GameInfo.lpcharacter, CursorCheckedItem, true);
+}
+
+namespace DragonAutoPlayClient
+{
+bool IsWorkSupported(int skillNo)
+{
+    if (skillNo <= 0 || skillNo >= MAX_SKILL_) return false;
+    // These harvesting/prospecting paths do not require recipe or item dialogs.
+    switch (skillNo)
+    {
+    case 25: case 26: case 28: case 30: case 32: case 35: case 36: break;
+    default: return false;
+    }
+    const int target = SkillTable[skillNo].Howto;
+    return target == SKILLTARGETTYPE_MAP_ || target == SKILLTARGETTYPE_HERO_;
+}
+
+bool TryWork(int skillNo, int tilex, int tiley, bool self)
+{
+    if (!Hero || IsDead(Hero) || !IsWorkSupported(skillNo) ||
+        !SCharacterData.SkillId[skillNo] || Hero->moveFlag ||
+        Hero->nCurrentAction == 17) return false;
+    if (SkillStatus != SKILL_OFF &&
+        (SkillNo != skillNo || SkillStatus != SKILL_ON)) return false;
+    if (SkillTable[skillNo].Howto == SKILLTARGETTYPE_HERO_ && !self) return false;
+    if (self) { tilex = Hero->x / TILE_SIZE; tiley = Hero->y / TILE_SIZE; }
+    if (tilex < 0 || tiley < 0 || tilex >= g_Map.file.wWidth ||
+        tiley >= g_Map.file.wHeight || tilex >= VILLAGE_SIZE ||
+        tiley >= VILLAGE_SIZE) return false;
+    const int x = tilex * TILE_SIZE + TILE_SIZE / 2;
+    const int y = tiley * TILE_SIZE + TILE_SIZE / 2;
+    const double dx = static_cast<double>(x) - Hero->x;
+    const double dy = static_cast<double>(y) - Hero->y;
+    const int rangeSquared = (skillNo == 28 || skillNo == 30) ? 64 * 64 * 8 : 64 * 64;
+    if (dx * dx + dy * dy > rangeSquared) return false;
+    if (!AmIEquitSkillTool(skillNo)) return false;
+    if (MapNumber == 39 && g_EventLocalWarBegin == 3) return false;
+    const int previousSkill = SkillNo;
+    const int previousStatus = SkillStatus;
+    if (SkillStatus == SKILL_OFF && SelectSkill(skillNo) != 0) return false;
+    CheckSkillAt(x, y, self ? Hero : NULL, NULL, false);
+    // SendSkillInfo uses the selected global SkillNo and owns SKILL_ING.
+    if (SkillStatus == SKILL_ING) return true;
+    if (previousStatus == SKILL_OFF) SkillSettingClear();
+    SkillNo = previousSkill;
+    SkillStatus = previousStatus;
+    return false;
+}
+}
 typedef struct tagDETECTTILE{	
 	short x, y;
 	short type;

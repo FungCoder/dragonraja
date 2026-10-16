@@ -4,6 +4,9 @@
 
 #include "..\stdafx.h"
 #include "BattleManager.h"
+#include "AutoPlayServer.h"
+#include "CombatShotServer.h"
+#include "../../Library/Shared/BattleSkillSafety.h"
 
 #include "PhysicalAttack.h"
 #include "AttackMagic.h"
@@ -558,7 +561,15 @@ void CBattleManager::RecvThrowAttack(WORD idCaster, t_client_throw_attack* pPack
 			m_packet.u.strike.server_throw_attack.nX = pTarget->Tox;
 			m_packet.u.strike.server_throw_attack.nY = pTarget->Toy;
 			m_packet.u.strike.server_throw_attack.nCombat = pCaster->GetActiveCombat();
-			::QueuePacket(connections, idCaster, &m_packet, 1);
+			if (UsesVersionedThrow(idCaster))
+            {
+                if (!IssueCombatShot(idCaster, idTarget, pTarget->Tox, pTarget->Toy)) return;
+            }
+            else
+            {
+                RegisterLegacyThrowRelease(idCaster);
+                ::QueuePacket(connections, idCaster, &m_packet, 1);
+            }
 			::CastMe2Other(idCaster, &m_packet);
 			break;
 		}
@@ -566,11 +577,19 @@ void CBattleManager::RecvThrowAttack(WORD idCaster, t_client_throw_attack* pPack
 }	//> CSD-TW-030606
 
 void CBattleManager::RecvThrowResult(WORD idCaster, t_client_throw_result* pPacket)
+{
+    if (!AllowLegacyThrowResult(idCaster)) return;
+    RecvAuthorizedThrowResult(idCaster, pPacket, -1);
+}
+
+void CBattleManager::RecvAuthorizedThrowResult(WORD idCaster, t_client_throw_result* pPacket, int attackKind)
 {	//< CSD-030723
 	const WORD idTarget = pPacket->idTarget; // 마법을 사용한 대상자
 	CHARLIST* pCaster = ::GetCharListPtr(idCaster);
 	CHARLIST* pTarget = ::GetCharListPtr(idTarget);
 	if (pCaster == NULL || pTarget == NULL)  return;  
+	if (g_block_attack || !IsBattle(pCaster) || !IsBattle(pCaster, pTarget)) return;
+    if (attackKind >= 0 && attackKind != WR_LONG1 && attackKind != WR_LONG2 && attackKind != WR_LONG3) return;
 	if (!FilterThrow(pCaster, pTarget))      return;
 
 	// 현상범인지 여부 설정
@@ -580,6 +599,8 @@ void CBattleManager::RecvThrowResult(WORD idCaster, t_client_throw_result* pPack
 	
 	const int nBattle = 0; 
 	
+    if (attackKind >= 0) GetBattle(nBattle)->SetIndex(attackKind);
+    else
 	switch (pCaster->GetTacticsKind())
 	{	
 	case TACTICS_Archery: 
@@ -660,6 +681,11 @@ void CBattleManager::RecvMagicLearn(WORD idMaster, k_client_learn_magic* pPacket
 	if (pMaster == NULL)  return;
 	
 	const int nMagic = pPacket->num;
+	if (nMagic <= 0) return;
+	if (pMaster->Spell == WIZARD_SPELL && nMagic >= sizeof(pMaster->Ws)) return;
+	if (pMaster->Spell == PRIEST_SPELL &&
+		(nMagic >= sizeof(pMaster->Ps) || nMagic + 150 >= Num_Of_Magic)) return;
+	if (pMaster->Spell != WIZARD_SPELL && pMaster->Spell != PRIEST_SPELL) return;
 	
 	switch (pMaster->Spell)
 	{
@@ -850,7 +876,8 @@ void CBattleManager::RecvNpcTeleport(t_client_npc_magic* pPacket)
 } //> CSD-030306
 
 void CBattleManager::RecvMagicSelect(WORD idCaster, t_client_magic_select* pPacket)
-{	//< CSD-TW-030623
+{
+	if (!IsMagic(pPacket->nMagic) || pPacket->nMagic >= Num_Of_Magic) return;	//< CSD-TW-030623
 	CHARLIST* pCaster = ::GetCharListPtr(idCaster);
 	
 	if (pCaster == NULL)
@@ -880,10 +907,12 @@ void CBattleManager::RecvMagicSelect(WORD idCaster, t_client_magic_select* pPack
 
 void CBattleManager::RecvMagicCasting(WORD idCaster, t_client_magic_casting* pPacket)
 {	//< CSD-TW-030606
+	ResetAutoPlaySession(idCaster);
 	CHARLIST* pCaster = GetCharListPtr(idCaster);
 	if (pCaster == NULL)  return;  
 	// 마법 시전 검사 설정
 	const BYTE nMagic = pPacket->nMagic;
+	if (nMagic < LIFE_UP || nMagic > RAGE_LIGHT_BALL) return;
 	const DWORD dwNow = g_curr_time + RareEM.GetStaticRareBear(pCaster->StaticRare);
 	
 	if (!pCaster->CheckStart(nMagic, g_curr_time)) 
@@ -910,6 +939,8 @@ void CBattleManager::RecvMagicCasting(WORD idCaster, t_client_magic_casting* pPa
 	m_packet.u.magic.server_magic_casting.nMagic = nMagic;
 	m_packet.u.magic.server_magic_casting.wReady = WORD(pCaster->CalcMagicCastReady(nMagic));
 	m_packet.u.magic.server_magic_casting.idCaster = idCaster;
+	BeginPlayerMagicPreparation(idCaster, nMagic,
+		m_packet.u.magic.server_magic_casting.wReady);
 	::QueuePacket(connections, idCaster, &m_packet, 1);
 	::CastMe2Other(idCaster, &m_packet);
 }	//> CSD-TW-030606
@@ -927,7 +958,8 @@ void CBattleManager::RecvMagicExecute(WORD idCaster, t_client_magic_execute* pPa
 	const WORD idTarget = pPacket->idTarget; // 마법 대상자 
 	CHARLIST* pCaster = ::GetCharListPtr(idCaster);
 	CHARLIST* pTarget = ::GetCharListPtr(idTarget);
-	if (pCaster == NULL || pTarget == NULL)  return;  
+	if (pCaster == NULL || pTarget == NULL)  return;
+	if (!CanExecutePlayerMagic(idCaster, BYTE(nMagic))) return;
 	// 효과벽에 대한 처리
 	const int nX = pPacket->nX;
 	const int nY = pPacket->nY;
@@ -975,6 +1007,7 @@ void CBattleManager::RecvMagicExecute(WORD idCaster, t_client_magic_execute* pPa
 	g_pLogManager->SaveMagicExecute(nMagic, pCaster, pTarget, nX, nY);
 	
 MAGIC_FAIL:
+	if (bFail) ResetAutoPlaySession(idCaster);
 	memset(&m_packet, 0, sizeof(t_packet));
 	m_packet.h.header.type = CMD_MAGIC_EXECUTE;
 	m_packet.h.header.size = sizeof(t_server_magic_execute);
@@ -996,7 +1029,9 @@ void CBattleManager::RecvMagicResult(WORD idCaster, t_client_magic_result* pPack
 	if (pCaster == NULL || pTarget == NULL)  return;  
 	
 	const int nMagic = pPacket->nMagic;
-	if (nMagic == 0)  return;
+	if (!IsMagic(nMagic) || nMagic >= Num_Of_Magic) return;
+	const int nBattle = Magic_Ref[nMagic].magic_Type/10;
+	if (nBattle < 1 || nBattle > 6) return;
 	// 효과벽에 대한 처리
 	const int nX = pPacket->nX;
 	const int nY = pPacket->nY;
@@ -1033,7 +1068,6 @@ void CBattleManager::RecvMagicResult(WORD idCaster, t_client_magic_result* pPack
 	
 	pTarget->SetWanted(pPacket->bWanted);    // 현상범인지 여부 설정
 	
-	const int nBattle = Magic_Ref[nMagic].magic_Type/10;
 	
 	GetBattle(nBattle)->SetIndex(nMagic);
 	GetBattle(nBattle)->SetBothID(idCaster, idTarget);
@@ -1046,6 +1080,7 @@ void CBattleManager::RecvMagicResult(WORD idCaster, t_client_magic_result* pPack
 
 void CBattleManager::RecvMagicResult(t_magic_result_d* pPacket)
 {
+	if (!IsMagic(pPacket->nMagic) || pPacket->nMagic >= Num_Of_Magic) return;
 	const WORD idCaster = pPacket->idCaster;
 	const WORD idTarget = pPacket->idTarget; // 마법을 사용한 대상자
 	CHARLIST* pCaster = ::GetCharListPtr(idCaster);
@@ -1140,7 +1175,8 @@ void CBattleManager::RecvCombatRequest(WORD idMaster, t_client_combat_request* p
 }
 
 void CBattleManager::RecvCombatLearn(WORD idMaster, t_client_combat_learn* pPacket)
-{  
+{
+	if (!IsCombat(pPacket->nSkill) || pPacket->nSkill >= Num_Of_Magic) return;
 	CHARLIST* pMaster = ::GetCharListPtr(idMaster);
 	if (pMaster == NULL)  return;
 	
@@ -1229,7 +1265,8 @@ void CBattleManager::RecvCombatClear(WORD idMaster, t_client_combat_clear* pPack
 }	//> CSD-TW-030606
 
 void CBattleManager::RecvCombatSelect(WORD idCaster, t_client_combat_select* pPacket)
-{   //< CSD-TW-030623
+{
+	if (!IsCombat(pPacket->nCombat) || pPacket->nCombat >= Num_Of_Magic) return;   //< CSD-TW-030623
 	CHARLIST* pCaster = ::GetCharListPtr(idCaster);
 	if (pCaster == NULL)  return;
 	// 서로 공격 가능여부 검사
@@ -1309,7 +1346,8 @@ void CBattleManager::RecvCombatSelect(WORD idCaster, t_client_combat_select* pPa
 }   //> CSD-TW-030623
 
 void CBattleManager::RecvCombatAttack(WORD idCaster, t_client_combat_attack* pPacket)
-{	//< CSD-TW-030606
+{
+	if (!IsCombat(pPacket->nSkill) || pPacket->nSkill >= Num_Of_Magic) return;	//< CSD-TW-030606
 	const int nCombat = pPacket->nSkill;
 	const int nX = pPacket->nX;
 	const int nY = pPacket->nY;
@@ -1391,8 +1429,12 @@ COMBAT_FAIL:
 }	//> CSD-TW-030606
 
 void CBattleManager::RecvCombatResult(WORD idCaster, t_client_combat_result* pPacket)
-{ //
+{
+	if (!IsCombat(pPacket->nSkill) || pPacket->nSkill >= Num_Of_Magic) return; //
 	const BYTE nCombat = pPacket->nSkill; // 전투스킬 번호
+	const int nType = Magic_Ref[nCombat].order_Type;
+	const int nBattle = (nType/10) + (nType%10);
+	if (nBattle < 7 || nBattle > 12) return;
 	const WORD idTarget = pPacket->idTarget;
 	CHARLIST* pCaster = ::GetCharListPtr(idCaster);
 	CHARLIST* pTarget = ::GetCharListPtr(idTarget);
@@ -1405,8 +1447,6 @@ void CBattleManager::RecvCombatResult(WORD idCaster, t_client_combat_result* pPa
 	
 	pTarget->SetWanted(pPacket->bWanted); // 현상범인지 여부 설정
 	
-	const int nType = Magic_Ref[nCombat].order_Type;
-	const int nBattle = (nType/10) + (nType%10);
 	const int nX = pPacket->nX;           // 전투스킬이 발생된 위치의 X좌표
 	const int nY = pPacket->nY;           // 전투스킬이 발생된 위치의 Y좌표  
 	
@@ -2060,6 +2100,7 @@ bool CBattleManager::IsBattle(CHARLIST* pCaster, CHARLIST* pTarget) const
 
 bool CBattleManager::IsValid(BYTE nMagic, int nX, int nY) const
 { //< 020522 : 효과벽인 경우 처리
+	if (!IsMagic(nMagic) || nMagic >= Num_Of_Magic) return false;
 	if (nX < 0)  return false;
 	if (nY < 0)  return false; 
 	if (nX >= g_lpMapFile->wWidth)   return false;
@@ -2084,6 +2125,7 @@ bool CBattleManager::IsValid(BYTE nMagic, int nX, int nY) const
 
 bool CBattleManager::IsValid(BYTE nKind, CHARLIST* pCaster) const
 { //
+	if ((!IsMagic(nKind) && !IsCombat(nKind)) || nKind >= Num_Of_Magic) return false;
 	if (!IsEnableClass(nKind, pCaster))
 	{
 		return false;
@@ -2095,13 +2137,11 @@ bool CBattleManager::IsValid(BYTE nKind, CHARLIST* pCaster) const
 		{
 		case WIZARD_SPELL: // 마법사라면  
 			{
-				if (pCaster->Ws[nKind])  return true;
-				break;
+				return DragonGameplay::HasLearnedSpell(nKind, 0, pCaster->Ws);
 			}
 		case PRIEST_SPELL: // 성직자라면
 			{
-				if (pCaster->Ps[nKind - 150])  return true;
-				break;
+				return DragonGameplay::HasLearnedSpell(nKind, 150, pCaster->Ps);
 			}
 		}
 		

@@ -4,6 +4,8 @@
 
 #include "stdafx.h"
 #include "CombatSys.h"
+#include "CombatShotClient.h"
+#include "../../Library/Shared/CombatShotProtocol.h"
 
 #include "Char.h"
 #include "Map.h"
@@ -11,6 +13,17 @@
 #include "Effect.h"
 #include "gameproc.h"
 using namespace battle;
+
+namespace
+{
+void InsertBurstRoot(LPCHARACTER caster, LPCHARACTER target, int skill, int effect, int x, int y)
+{
+    const uint64_t batch = CombatShotTakeBurst(caster->id, target->id, skill);
+    if (caster == Hero && !batch) return;
+    ::InsertMagicWithBatch(caster, target, effect, 0, 0, 0, x, y, false, 0, false, 0, batch);
+}
+}
+
 
 extern int g_CurrCharStatus;
 extern char tool_ID_EFFECT_TEST;
@@ -99,26 +112,20 @@ void CCombatSys::Effect(MAGICLIST* pEffect)
 		{
 		case MULTIPLE_FIRE:
 			{
-				switch (pCaster->nActiveLevel)
-				{
-				case 1:
-				case 2: EffectShoot(pEffect, 3); break;
-				case 3: EffectShoot(pEffect, 5); break;
-				}
-				
-				break;
-			}
+                const unsigned count = pEffect->shot_batch ?
+                    CombatShotBurstCount(pEffect->shot_batch, nCombat) :
+                    DragonCombatShot::BurstParts(nCombat, pCaster->nActiveLevel);
+                if (count) EffectShoot(pEffect, int(count));
+                break;
+            }
 		case ICING_BLAST:
 			{
-				switch (pCaster->nActiveLevel)
-				{
-				case 1:
-				case 2: EffectMulti(pEffect, 3); break;
-				case 3: EffectMulti(pEffect, 5); break;
-				}
-				
-				break;
-			}
+                const unsigned count = pEffect->shot_batch ?
+                    CombatShotBurstCount(pEffect->shot_batch, nCombat) :
+                    DragonCombatShot::BurstParts(nCombat, pCaster->nActiveLevel);
+                if (count) EffectMulti(pEffect, int(count));
+                break;
+            }
 		case LIGHTNING_EXTREME:
 			{
 				//EffectSpread(pEffect);
@@ -417,12 +424,20 @@ void CCombatSys::Effect(LPCHARACTER pCaster, LPCHARACTER pTarget)
 				break;
 			}
 		case MULTIPLE_FIRE:
+            {
+                InsertBurstRoot(pCaster, pTarget, nCaster, 513, pTarget->x, pTarget->y);
+                break;
+            }
 		case FIRE_EXTREME:
 			{
 				::InsertMagic(pCaster, pTarget, 513, 0, 0, 0, pTarget->x, pTarget->y);
 				break;
 			}
 		case ICING_BLAST:
+            {
+                InsertBurstRoot(pCaster, pTarget, nCaster, 514, pTarget->x, pTarget->y);
+                break;
+            }
 		case ICE_EXTREME:
 			{
 				::InsertMagic(pCaster, pTarget, 514, 0, 0, 0, pTarget->x, pTarget->y);

@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 #include "Battle.h"
+#include "CombatShotClient.h"
 
 #include <math.h>
 #include "Map.h"
@@ -207,7 +208,7 @@ void CBattle::EffectShoot(MAGICLIST* pMagic, int nCount)
 		memset(&infEffect, 0, sizeof(EFFECT_INFO));
 		infEffect.pCaster = pCaster;
 		infEffect.pTarget = pTarget;
-		infEffect.nType = pCaster->excute_MagicNum;
+		infEffect.nType = pMagic->shot_batch ? pMagic->magicSerial : pCaster->excute_MagicNum;
 		infEffect.nEffect = pMagic->next_Effect;
 		infEffect.nSub = pMagic->magicSubNum;
 		infEffect.nDir = nDir;
@@ -215,6 +216,11 @@ void CBattle::EffectShoot(MAGICLIST* pMagic, int nCount)
 		infEffect.nSrcY = pMagic->y;
 		infEffect.nDstX = pMagic->x + nOffX;
 		infEffect.nDstY = pMagic->y + nOffY;
+        if (pMagic->shot_batch)
+        {
+            infEffect.shotAction = CombatShotTakePart(pMagic->shot_batch, unsigned(i), unsigned(nCount));
+            if (!infEffect.shotAction) continue;
+        }
 		AddEffect(&infEffect);
 	}
 }
@@ -235,7 +241,7 @@ void CBattle::EffectMulti(MAGICLIST* pMagic, int nCount)
 		memset(&infEffect, 0, sizeof(EFFECT_INFO));
 		infEffect.pCaster = pCaster;
 		infEffect.pTarget = pTarget;
-		infEffect.nType = pCaster->excute_MagicNum;
+		infEffect.nType = pMagic->shot_batch ? pMagic->magicSerial : pCaster->excute_MagicNum;
 		infEffect.nEffect = pMagic->next_Effect;
 		infEffect.nSub = pMagic->magicSubNum;
 		infEffect.nDir = pCaster->direction;
@@ -243,6 +249,11 @@ void CBattle::EffectMulti(MAGICLIST* pMagic, int nCount)
 		infEffect.nSrcY = pMagic->y + ptDistance.y;
 		infEffect.nDstX = pMagic->tarx + ptDistance.x;
 		infEffect.nDstY = pMagic->tary + ptDistance.y;
+        if (pMagic->shot_batch)
+        {
+            infEffect.shotAction = CombatShotTakePart(pMagic->shot_batch, unsigned(i), unsigned(nCount));
+            if (!infEffect.shotAction) continue;
+        }
 		AddEffect(&infEffect);
 	}
 }
@@ -438,6 +449,8 @@ void CBattle::AddEffect(EFFECT_INFO* pEffect)
 	const int nEffect = pEffect->nEffect; // ÀÌÆåÆ® ¹øÈ£
 	MAGICLIST* pTemp = NULL;
 	MemAlloc(pTemp, sizeof(MAGICLIST));
+    pTemp->shot_action = pEffect->shotAction;
+    pTemp->shot_batch = 0;
 	pTemp->magicSerial = pEffect->nType;
 	pTemp->magicNum = nEffect;	  
 	pTemp->magicSubNum = pEffect->nSub;

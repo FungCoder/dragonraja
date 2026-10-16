@@ -200,6 +200,9 @@ public:
 	
 public:
 	BYTE GetMagic() const { return m_nMagic; }
+	DWORD GetCastingDeadline() const { return m_dwCasting; }
+	DWORD GetAttackTime() const { return m_dwAttack; }
+	BYTE GetAttackCount() const { return m_nAttack; }
 	BYTE GetActiveCombat() const  { return m_nActive; }
 	BYTE GetPassiveCombat() const { return m_nPassive; }
 	BYTE GetCombatCount() const { return m_nCount; }

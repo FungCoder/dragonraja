@@ -11,6 +11,7 @@
 #include "RecvMsgFromServer.h"
 #include <crtdbg.h>
 #include <time.h>
+#include "../Library/Shared/PacketSafety.h"
 #include "CUseMoney.h" // 030325 kyo 태국 과금용
 
 extern char szMsg[MAX_PACKET_SIZE];
@@ -287,18 +288,12 @@ void RecvCMD_CONNECT_AGENT_SERVER_CONFORM(USERINFO *pUser, t_packet *p)//
 
 inline bool RAJADecodePacket(USERINFO* pUser, t_packet *p, int iLength)
 {
-	MyLog(0, "[HSELDBG-RAW] len=%d raw=%02X %02X %02X %02X %02X %02X %02X %02X", iLength,
-		(unsigned char)((char*)p)[0], (unsigned char)((char*)p)[1], (unsigned char)((char*)p)[2], (unsigned char)((char*)p)[3],
-		(unsigned char)((char*)p)[4], (unsigned char)((char*)p)[5], (unsigned char)((char*)p)[6], (unsigned char)((char*)p)[7]);
 	pUser->de.Decrypt(p->h.data,2);
 	pUser->de.Decrypt(p->u.data,iLength-5);
 	
 	if( pUser->de.GetCRCConvertChar() != p->h.header.crc)
 	{
-		MyLog(0, "[HSELDBG] CRC fail: comp=%02X recv=%02X len=%d size=%d type_raw=%04X de.kL=%08X de.kR=%08X de.kM=%08X",
-			(unsigned char)pUser->de.GetCRCConvertChar(), (unsigned char)p->h.header.crc, iLength,
-			(int)p->h.header.size, (unsigned short)p->h.header.type,
-			(unsigned int)pUser->de.GetNowHSELKey().iLeftKey, (unsigned int)pUser->de.GetNowHSELKey().iRightKey, (unsigned int)pUser->de.GetNowHSELKey().iMiddleKey);
+		MyLog(LOG_NORMAL, "Packet CRC validation failed: length=%d", iLength);
 		return false;
 	}
 	return true;
@@ -335,6 +330,8 @@ void __stdcall RecvMsgFromUser(DWORD dwConnectionIndex, char* pMsg, DWORD dwLeng
 	// 송신자의 Identity는 무조건 정상값. 그외의 경우 프로그램의 버그.
 	_ASSERT( pUserInfo );
 
+	if (!pUserInfo) return;
+
 	g_pUserTable->SetTickForSleptTimeProcess( pUserInfo );
 
 	// Invalid User to be Disconnected..
@@ -343,7 +340,8 @@ void __stdcall RecvMsgFromUser(DWORD dwConnectionIndex, char* pMsg, DWORD dwLeng
 #define IUD_STATUS_USER_NOT_CERTIFIED_		12
 
 	// 기본사이즈 체크
-	if( dwLength < sizeof(t_header) )
+	if (!pMsg || !DragonPacketSafety::IsFrameSizeValid(dwLength,
+		sizeof(t_header), RAJA_MAX_PACKET_SIZE))
 	{
 //		MyLog( LOG_FATAL, "User(%d) :: Illegal Packet size(smaller than sizeof(t_header)) has received", dwConnectionIndex );
 		// 사용자가 규격에 어긋나는 패킷을 보냈다.
@@ -391,7 +389,8 @@ void __stdcall RecvMsgFromUser(DWORD dwConnectionIndex, char* pMsg, DWORD dwLeng
 	}
 
 	// Is it Valid packet?
-	if( packet->h.header.size != (WORD)(dwLength-sizeof(t_header)) )
+	if (!DragonPacketSafety::IsCompleteFrameValid(dwLength,
+		packet->h.header.size, sizeof(t_header), RAJA_MAX_PACKET_SIZE))
 	{		
 		MyLog( LOG_FATAL, "User(%d) :: Illegal Packet(%d) has received", dwConnectionIndex, packet->h.header.type );
 		// 사용자가 규격에 어긋나는 패킷을 보냈다. 필요하면 여기서 끊어준다.

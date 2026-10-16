@@ -7,6 +7,7 @@
 
 #if _MSC_VER > 1000
 #pragma once
+#include <stdint.h>
 #endif // _MSC_VER > 1000
 ///////////////////////////////////////////////////////////////////////////////
 // 전투 관한 정의
@@ -241,6 +242,7 @@ protected:
 	// 이펙트 정보
 	struct EFFECT_INFO
 	{
+        uint64_t shotAction = 0;
 		LPCHARACTER pCaster; // 시전자
 		LPCHARACTER pTarget; // 대상자
 		int         nType;   // 마법이나 스킬번호

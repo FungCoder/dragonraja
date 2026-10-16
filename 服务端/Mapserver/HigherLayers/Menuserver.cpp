@@ -1878,6 +1878,7 @@ int GetItemValueSell( ItemAttr *item )//020925 lsw float �� �ٲپ� ��
 
 ItemAttr *GetItemByPOS( int cn, POS item )
 {
+	if (cn <= DB_DEMON || cn >= DRAGON_MAX_CONNECTIONS) return NULL;
 	CHARLIST *ch = CheckServerId( cn );
 	if( !ch ) return NULL;
 	return GetItemByPOS( ch, item );
@@ -1885,13 +1886,14 @@ ItemAttr *GetItemByPOS( int cn, POS item )
 
 ItemAttr *GetItemByPOS( CHARLIST *ch, POS item )
 {//021030 lsw
+	if (!ch) return NULL;
 	switch( item.type )
 	{
 		case	HAND	:	return &ch->handheld;
-		case	INV		:	return &ch->inv[item.p1][item.p2][item.p3];
-		case	EQUIP	:	return &ch->equip[item.p3];
-		case	QUICK	:	return &ch->quick[item.p3];
-		case	BANK	:	return &ch->bank[item.p1][item.p2][item.p3];
+		case	INV		:	return GetGameplayArrayItem(ch->inv, item.p1, item.p2, item.p3);
+		case	EQUIP	:	return GetGameplayArrayItem(ch->equip, item.p3);
+		case	QUICK	:	return GetGameplayArrayItem(ch->quick, item.p3);
+		case	BANK	:	return GetGameplayArrayItem(ch->bank, item.p1, item.p2, item.p3);
 		case	BOX		:
 		case	MAKE	:	
 		case	AUCTION_DB :

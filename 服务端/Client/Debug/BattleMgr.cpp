@@ -3,6 +3,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
+#include "CombatShotClient.h"
 #include "BattleMgr.h"
 
 #include <algorithm>
@@ -368,7 +369,17 @@ void CBattleMgr::SendStrikeAttack(LPCHARACTER pCaster, LPCHARACTER pTarget)
 }
 
 void CBattleMgr::SendThrowAttack(LPCHARACTER pCaster, LPCHARACTER pTarget)
-{	
+{
+    if (pCaster == Hero && CombatShotNeedsHandshake(pCaster->nActiveCombat, pCaster->bow_Type) && !CombatShotReady())
+    {
+        static DWORD lastWarning = 0;
+        if (!lastWarning || DWORD(g_ClientTime - lastWarning) >= 5000)
+        {
+            lastWarning = g_ClientTime;
+            Message(MK_WARNING, "Secure ranged combat requires matching client/server updates.");
+        }
+        return;
+    }
 	if (!IsAttackAble(pTarget))
 	{
 		return;
@@ -585,6 +596,11 @@ void CBattleMgr::SendMagicExecute(BYTE nMagic, LPCHARACTER pTarget, int nX, int 
 }	//> CSD-TW-030606
 
 void CBattleMgr::SendMagicResult(WORD wdEffect, LPCHARACTER pCaster, WORD idTarget, int nX, int nY)
+{
+    SendMagicResultWithAction(wdEffect, pCaster, idTarget, nX, nY, 0);
+}
+
+void CBattleMgr::SendMagicResultWithAction(WORD wdEffect, LPCHARACTER pCaster, WORD idTarget, int nX, int nY, uint64_t action)
 {	//< CSD-031007
 	if (!IsIgnoreBattle())
 	{	// 게임창이 활성화 되지 않으면 마법 결과를 보내지 않음
@@ -595,6 +611,11 @@ void CBattleMgr::SendMagicResult(WORD wdEffect, LPCHARACTER pCaster, WORD idTarg
 	if (pCaster == NULL || pTarget == NULL)  return;
 	
 	t_packet packet;
+    if (pCaster == Hero && action)
+    {
+        CombatShotSendHit(action, idTarget, nX, nY, pTarget->hunter_target);
+        return;
+    }
 	
 	if (pCaster == Hero)
 	{
@@ -1312,7 +1333,8 @@ void CBattleMgr::RecvAttackResult(t_attack_result_d* pPacket)
 }	//> CSD-TW-030606
 
 void CBattleMgr::RecvThrowAttack(t_server_throw_attack* pPacket)
-{	//< CSD-TW-030606
+{
+    if (Hero && pPacket->idCaster == Hero->id) CombatShotForgetPending();	//< CSD-TW-030606
 	LPCHARACTER pCaster = ::ReturnCharacterPoint(pPacket->idCaster);
 	LPCHARACTER pTarget = ::ReturnCharacterPoint(pPacket->idTarget);
 	if (pCaster == NULL || pTarget == NULL)  return;  

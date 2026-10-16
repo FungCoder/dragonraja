@@ -9,7 +9,12 @@
 * corporation without the prior written consent of Future Entertainment World *
 \*****************************************************************************/
 																	
-#include "stdafx.h"																	
+#include "stdafx.h"
+#include "CombatShotClient.h"
+#include "AutoPlay.h"
+#include "../../Library/Shared/AutoPlayProtocol.h"
+#include "../../Library/Shared/CombatShotProtocol.h"
+#include "../../Library/Shared/PacketSafety.h"
 #include "String.h"
 #include <stdlib.h>//010707 lsw
 #include "mmsystem.h"														
@@ -569,6 +574,7 @@ void SendAllReady( void )
 	}
 	packet.h.header.size = sizeof( t_all_ready );
 	QueuePacket( &packet, 1 );
+    CombatShotBegin();
 
 	// 021117 YGI
 #ifdef LIGHT_VERSION_
@@ -2736,6 +2742,14 @@ int HandleCommand( t_connection *c )
 				g_mgrBattle.RecvNpcMagic(&packet.u.magic.server_npc_magic);
 				break;
 			}
+        case DragonCombatShot::AckCommand:
+        case DragonCombatShot::IssuedCommand:
+        case DragonCombatShot::BurstIssuedCommand:
+            CombatShotReceive(packet.h.header.type, packet.u.data, packet.h.header.size);
+            break;
+		case DragonAutoPlay::ResponseCommand:
+			AutoPlayReceive(packet.u.data, packet.h.header.size);
+			break;
 		case CMD_MAGIC_SELECT:
 			{	//< CSD-TW-030606
 				g_mgrBattle.RecvMagicSelect(&packet.u.magic.server_magic_select); 
@@ -2743,12 +2757,14 @@ int HandleCommand( t_connection *c )
 			}	//> CSD-TW-030606
         case CMD_MAGIC_CASTING: 
 			{	//< CSD-TW-030606
-				g_mgrBattle.RecvMagicCasting(&packet.u.magic.server_magic_casting); 
+				g_mgrBattle.RecvMagicCasting(&packet.u.magic.server_magic_casting);
+				if (Hero && packet.u.magic.server_magic_casting.idCaster == Hero->id) AutoPlayMagicPrepared(packet.u.magic.server_magic_casting.nMagic);
 				break;
 			}	//> CSD-TW-030606
         case CMD_MAGIC_EXECUTE:	
 			{	//< CSD-TW-030606
-				g_mgrBattle.RecvMagicExecute(&packet.u.magic.server_magic_execute);    
+				g_mgrBattle.RecvMagicExecute(&packet.u.magic.server_magic_execute);
+				if (Hero && packet.u.magic.server_magic_execute.idCaster == Hero->id) AutoPlayMagicFinished(packet.u.magic.server_magic_execute.nMagic);
 				break;
 			}	//> CSD-TW-030606
 		case CMD_MAGIC_RESULT: 
@@ -3862,7 +3878,9 @@ int HandleReading(t_connection* c)
 				
 		if ( c->packet_status == 0 )
 		{		
+			if (!DragonPacketSafety::IsReadWindowValid(c->packet_size, c->packet_pnt, 2)) return -13;
 			addlen = recv( c->socket, &c->len[ c->packet_pnt ], c->packet_size, 0 );
+			if (addlen == 0) return -12;
 			if ( addlen < 0 )
 			{	
 				int err = WSAGetLastError();
@@ -3879,6 +3897,7 @@ int HandleReading(t_connection* c)
 				if ( c->packet_size == 0 )
 				{
 					c->udwp_len = (WORD *)c->len;
+					if (!DragonPacketSafety::IsFrameSizeValid(*c->udwp_len, sizeof(t_header), sizeof(c->packet.u.data))) return -13;
 					
 					c->packet_pnt = 0;
 					c->packet_size = sizeof( t_header );
@@ -3892,7 +3911,9 @@ int HandleReading(t_connection* c)
 		}		
 		else if( c->packet_status == 1 )
 		{
+			if (!DragonPacketSafety::IsReadWindowValid(c->packet_size, c->packet_pnt, sizeof(c->packet.h.data))) return -13;
 			addlen = recv( c->socket, &c->packet.h.data[ c->packet_pnt ], c->packet_size, 0 );
+			if (addlen == 0) return -12;
 			if ( addlen < 0 )
 			{	
 				int err = WSAGetLastError();
@@ -3901,13 +3922,6 @@ int HandleReading(t_connection* c)
 			}	
 			else if ( addlen > 0 )
 			{	
-				if( c->packet.h.header.size < 0 ) 
-				{
-					JustMsg( "HandleReading Error size < 0 " );
-					_asm int 3;
-					_asm nop;
-				}
-				
 				c->packet_size -= addlen;
 				c->packet_pnt += addlen;
 				
@@ -3915,6 +3929,8 @@ int HandleReading(t_connection* c)
 				
 				if ( c->packet_size == 0 )
 				{
+					if (!DragonPacketSafety::IsCompleteFrameValid(*c->udwp_len, c->packet.h.header.size,
+						sizeof(t_header), sizeof(c->packet.u.data))) return -13;
 					if ( c->packet.h.header.size == 0 )
 					{
 						QueuePacket( &c->packet, 0 );
@@ -3941,7 +3957,9 @@ int HandleReading(t_connection* c)
 		}
 		else if ( c->packet_status == 2 )
 		{		
+			if (!DragonPacketSafety::IsReadWindowValid(c->packet_size, c->packet_pnt, sizeof(c->packet.u.data))) return -15;
 			addlen = recv( c->socket, &c->packet.u.data[ c->packet_pnt ], c->packet_size, 0 );
+			if (addlen == 0) return -14;
 
  			if ( addlen < 0 )
 			{

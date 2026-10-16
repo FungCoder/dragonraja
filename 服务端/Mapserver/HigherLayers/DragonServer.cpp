@@ -29,6 +29,12 @@
 #include "dungeon.h"		// 020701 YGI
 #include "eventmgr.h"
 #include "UserManager.h"
+#include "AutoPlayServer.h"
+#include "ClientBattleIngress.h"
+#include "CombatShotServer.h"
+#include "PlayerSessionSafety.h"
+#include "../../Library/Shared/CombatShotProtocol.h"
+#include "../../Library/Shared/AutoPlayProtocol.h"
 #include "BattleManager.h"
 #include "DualManager.h"
 #include "SymbolItemMgr.h" // soto-1.02
@@ -84,7 +90,8 @@ extern int SearchItemByInv( int item_no, CHARLIST *ch );
 extern int HandleCommand3( t_packet *p, t_connection c[], const int cn );		// 021028 kyo
 
 void CleanUpConnection(short idServer)
-{	//< CSD-HK-030829
+{
+    ResetCombatShotSession(idServer);	//< CSD-HK-030829
 	memset(&connections[idServer], 0, sizeof(t_connection));
 	memset(var[idServer], 0, SIZE_OF_SCRIPT_VAR);
 }	//> CSD-HK-030829
@@ -93,6 +100,7 @@ void CleanUpConnectionList()
 {
 	for (DWORD i = 0; i <= DRAGON_MAX_CONNECTIONS; ++i) 
 	{
+		ResetCombatShotSession(i);
 		connections[i].dwAgentConnectionIndex = 0;
 		connections[i].dwIDForAgent = 0;
 	}
@@ -425,6 +433,36 @@ void SendEnvironment( t_connection c[], int cn)
 }
 
 extern void RecvNewDay( t_packet *packet );
+// Agent-forwarded user traffic enters here; AI and map messages use HandleCommand.
+int HandleUserCommand(int cn, t_packet* packet)
+{
+    if (!packet || cn < DRAGON_CONNECTIONS_START || cn >= DRAGON_MAX_CONNECTIONS)
+        return -80;
+    const unsigned command = packet->h.header.type;
+    if (!DragonClientBattle::IsPayloadAllowed(command, packet->h.header.size))
+        return -81;
+    if (DragonClientBattle::ExpectedPayloadSize(command) >= 0)
+    {
+        if (!DragonGameplay::IsPlayerSession(cn))
+            return -82;
+    }
+    if (command == CMD_MAGIC_RESULT_D)
+    {
+        const t_magic_result_d& result = packet->u.magic.magic_result_d;
+        if (result.idTarget != cn || result.nMagic == 0 || result.nMagic >= Num_Of_Magic)
+            return -83;
+        CHARLIST* caster = GetCharListPtr(result.idCaster);
+        CHARLIST* target = GetCharListPtr(result.idTarget);
+        if (!caster || !target ||
+            !DragonClientBattle::CanReportNpcHit(cn, result.idTarget, caster->IsNpc(), target->IsPlayer()))
+            return -83;
+        const int group = Magic_Ref[result.nMagic].magic_Type / 10;
+        if (group < 1 || group > 6) return -83;
+    }
+    if (command == CMD_THROW_RESULT && !AllowLegacyThrowResult(cn)) return -84;
+    return HandleCommand(cn, packet);
+}
+
 int HandleCommand( int cn, t_packet *packet)
 {
 	if ((cn < 0 || cn > DRAGON_MAX_CONNECTIONS) && cn != CN_FROM_OTHER_MAPSERVER_MSG)
@@ -432,8 +470,29 @@ int HandleCommand( int cn, t_packet *packet)
 		return -80;
 	}		
 	
+	if (packet->h.header.type == CMD_ALL_READY ||
+        packet->h.header.type == CMD_USER_REMOVE ||
+        packet->h.header.type == CMD_CHANGE_MAP_DETECTED) ResetCombatShotSession(cn);
+
+	// Preparation never survives map/session changes or explicit skill switches.
+	if (packet->h.header.type == CMD_ALL_READY ||
+		packet->h.header.type == CMD_USER_REMOVE ||
+		packet->h.header.type == CMD_CHANGE_MAP_DETECTED ||
+		packet->h.header.type == CMD_MAGIC_SELECT ||
+		packet->h.header.type == CMD_COMBAT_SELECT)
+		ResetAutoPlaySession(cn);
+
 	switch (packet->h.header.type)
 	{
+    case DragonCombatShot::HelloCommand:
+        RecvCombatShotHello(cn, packet->u.data, packet->h.header.size);
+        break;
+    case DragonCombatShot::HitCommand:
+        RecvCombatShotHit(cn, packet->u.data, packet->h.header.size);
+        break;
+	case DragonAutoPlay::RequestCommand:
+		RecvAutoPlayQuery(cn, &packet->u, packet->h.header.size);
+		break;
 	case CMD_NONE:
 		{
 			break;

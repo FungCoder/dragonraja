@@ -39,6 +39,7 @@ public:
 	void RecvNpcThrow(t_npc_throw* pPacket);
 	void RecvThrowAttack(WORD idCaster, t_client_throw_attack* pPacket);
 	void RecvThrowResult(WORD idCaster, t_client_throw_result* pPacket);
+	void RecvAuthorizedThrowResult(WORD idCaster, t_client_throw_result* pPacket, int attackKind);
 
 	void RecvEffectResult(WORD idCaster, t_client_effect_result* pPacket); // CSD-031007
 	

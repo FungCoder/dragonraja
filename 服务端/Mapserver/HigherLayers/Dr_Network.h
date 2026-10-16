@@ -3067,6 +3067,7 @@ extern "C"
 	//-------------------------------------------------------
 	extern int  HandleAccepting(t_connection c[], SOCKET lsock);
 	extern int  HandleCommand( int cn, t_packet *pakcet);
+	extern int HandleUserCommand(int cn, t_packet* packet);
 	extern int  HandleReading(t_connection c[], int cn);
 	extern int  HandleWriting(t_connection c[], int cn);
 	extern int  HandleWriting_neo(t_connection c[], int cn);

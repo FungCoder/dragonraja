@@ -1,4 +1,8 @@
 #include "stdafx.h"
+#include "CombatShotClient.h"
+#include "QuestTrace.h"
+#include "AutoPlay.h"
+#include "AutoPlayExtras.h"
 #include <Math.H>
 #include "gameproc.h"
 
@@ -460,11 +464,11 @@ BOOL GameProc( LPDIRECTDRAWINFO lpDirectDrawInfo )//030703 lsw
 	CrackMgr.AutoCheckAccel();
 	CheckingAccelator_Sub1();
 
-	if( ProtocolProc( &connections, false ) < 0 )	{return FALSE;}			// 010612 YGI
+	if( ProtocolProc( &connections, false ) < 0 )	{AutoPlayStop(); QuestTraceReset(); CombatShotReset(); return FALSE;}			// 010612 YGI
 
 	ViewCheckRoutine( 10 );
 													
-	if( ChangeMapFlag )	if( RecvChangeMap( &ChangeMapPacket ) == FALSE ){return FALSE;}
+	if (ChangeMapFlag) { AutoPlayStop(); QuestTraceReset(); CombatShotReset(); if (RecvChangeMap(&ChangeMapPacket) == FALSE) return FALSE; }
 	if( CheckSumError )	
 	{
 		SendHexaEditing( CheckSumError, Hero->id); 
@@ -511,6 +515,8 @@ BOOL GameProc( LPDIRECTDRAWINFO lpDirectDrawInfo )//030703 lsw
 
 	if ( UpdateInputState( ) == DI_OK )
 	{	
+		if (AutoPlayIsRunning() && (g_nLButtonState == STATE_BUTTON_PRESSED || g_nRButtonState == STATE_BUTTON_PRESSED)) AutoPlayStop();
+		if (g_nLButtonState == STATE_BUTTON_PRESSED || g_nRButtonState == STATE_BUTTON_PRESSED) QuestTraceCancelNavigation();
 		KeyboardProc( );
 		MouseProc( );
 	}	
@@ -520,6 +526,9 @@ BOOL GameProc( LPDIRECTDRAWINFO lpDirectDrawInfo )//030703 lsw
 JUMP_SKIP:
 	
 	CharacterProcCheck();
+	CombatShotTick();
+	AutoPlayTick();
+	QuestTraceTick();
 	
 	ViewCheckRoutine( 50 );
 	
@@ -559,7 +568,7 @@ JUMP_SKIP:
 
 	CheckHpUpDown();
 
-	if ( ProtocolWritingProc( &connections ) < 0 )	{return FALSE;}
+	if ( ProtocolWritingProc( &connections ) < 0 )	{AutoPlayStop(); QuestTraceReset(); CombatShotReset(); return FALSE;}
 
 	gr.GuideGhost_PreSet();
 
@@ -3234,6 +3243,7 @@ void DisplaySpriteBottom( void )
 			case SPRITETYPE_EFFECT_BOTTOM :
 			{
 				o->show = 0;
+				if (DragonAutoPlayClient::HideMagicEffects()) break;
 				switch( o->type )
 				{
 					case 1:
@@ -3392,6 +3402,7 @@ void DisplaySprite_Character(int &x,int &y,LPCHARACTER ch,LPORDERTABLE o)//02110
 		else h_DisplayPC( ch, 1 );						
 	}											
 									
+	if (DragonAutoPlayClient::HidePlayer(ch)) { o->show = 0; return; }
 	x = ch->x - Mapx+1;	
 	y = ch->y - Mapy - CharSpr[ ch->sprno ].sp[0][0].yl - 20;
 
@@ -3925,6 +3936,7 @@ void DisplaySprite_Item(int &x,int &y,LPCHARACTER ch,LPORDERTABLE o)//021108 lsw
 
 void DisplaySprite_Effect(int &x,int &y,LPCHARACTER ch,LPORDERTABLE o)//021108 lsw
 {
+	if (DragonAutoPlayClient::HideMagicEffects()) { o->show = 0; return; }
 	switch( o->type )
 	{
 		case 1:
@@ -4123,6 +4135,7 @@ void DisplaySpriteCeiling( void )
 		{	
 			case SPRITETYPE_EFFECT_CEILING :
 			{
+				if (DragonAutoPlayClient::HideMagicEffects()) { o->show = 0; break; }
 				switch( o->type )
 				{
 					case 1:
@@ -4169,6 +4182,7 @@ void DisplaySpriteCeiling( void )
 					else h_DisplayPC( ch, 1 );
 				}	
 
+				if (DragonAutoPlayClient::HidePlayer(ch)) { o->show = 0; break; }
 				// ####나중에지워...
 				int x = ch->x - Mapx+1;	
 				int y = ch->y - Mapy - CharSpr[ ch->sprno ].sp[0][0].yl - 20;

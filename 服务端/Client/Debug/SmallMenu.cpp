@@ -1,4 +1,6 @@
 ﻿#include "stdafx.h"
+#include "QuestTrace.h"
+#include "AutoPlay.h"
 #include <ddraw.h>
 #include <Io.h>
 #include "Hangul.h"
@@ -132,6 +134,7 @@ void EatItem(const ItemAttr item, const POS ItemPos)//020501 lsw 아이템 먹�
 	::InsertMagic( Hero, Hero, 247, 0, 0,0,0,0 );
 	
 	ITEMATTR *pItem = GetItemByPos(ItemPos);
+	if (!pItem || pItem->item_no != item.item_no) return;
 	if(pItem)//지워져 버리면 안되잖아
 	{
 		::CallItemVirtualFunction(VF_EAT_ITEM, item_no );
@@ -6579,15 +6582,16 @@ int QuickKey( int menu, HWND active_hwnd )		// 단축키 // 주의: 필드번호
 			int old_key = SMenu[menu].key2;
 			SMenu[menu].key2 = -1;
 			//	if(g_aCurrentKeys[DIK_] & 0x80 )	SMenu[menu].key2 = '';
-			if(g_aCurrentKeys[DIK_Q] & 0x80 ){	SMenu[menu].key2 = 'q';}//q
+			if(g_aCurrentKeys[DIK_Q] & 0x80 ){	SMenu[menu].key2 = (g_aCurrentKeys[DIK_LCONTROL]&0x80) ? 'Q' : 'q';}//q
 			if(g_aCurrentKeys[DIK_E] & 0x80 ){	SMenu[menu].key2 = 'e';}//e
 			if(g_aCurrentKeys[DIK_A] & 0x80 ){	SMenu[menu].key2 = 'a';}//a
 			if(g_aCurrentKeys[DIK_S] & 0x80 ){	SMenu[menu].key2 = 's';}//s
 			if(g_aCurrentKeys[DIK_D] & 0x80 ){	SMenu[menu].key2 = 'd';}//d
-			if(g_aCurrentKeys[DIK_Z] & 0x80 ){	SMenu[menu].key2 = 'z';}
+			if(g_aCurrentKeys[DIK_Z] & 0x80 ){ SMenu[menu].key2 = (g_aCurrentKeys[DIK_LCONTROL]&0x80) ? 'Z' : 'z'; }
 			if(g_aCurrentKeys[DIK_X] & 0x80 ){	SMenu[menu].key2 = 'x';}
 			if(g_aCurrentKeys[DIK_O] & 0x80 ){	SMenu[menu].key2 = 'o';}
-			if(g_aCurrentKeys[DIK_L] & 0x80 ){	SMenu[menu].key2 = 'l';}
+			if(g_aCurrentKeys[DIK_L] & 0x80 ){ SMenu[menu].key2 = (g_aCurrentKeys[DIK_LCONTROL]&0x80) ? 'L' : 'l'; }
+			if(g_aCurrentKeys[DIK_P] & 0x80 ){ SMenu[menu].key2 = 'p'; }
 			if(g_aCurrentKeys[DIK_M] & 0x80 ){	SMenu[menu].key2 = 'm';}
 			if(g_aCurrentKeys[DIK_F] & 0x80 ){	SMenu[menu].key2 = 'f';}
 			if(g_aCurrentKeys[DIK_TAB] & 0x80 ){SMenu[menu].key2 = 't';}				
@@ -6616,16 +6620,20 @@ int QuickKey( int menu, HWND active_hwnd )		// 단축키 // 주의: 필드번호
 			{
 				switch( old_key )
 				{
+				case 'Q' : { QuestTraceShow(); } break;
 				case 'q' :	{DoButtonCheckOfMenu( menu,	STATUS_FIELD); }break;
 				case 'w' :	{DoButtonCheckOfMenu( menu,	INVENTORY_FIELD); }break;
 				case 'e' :	{DoButtonCheckOfMenu( menu,	PARTY_FIELD); }break;
 				case 'a' :	{DoButtonCheckOfMenu( menu,	MAGIC_FIELD); }break;
 				case 's' :	{DoButtonCheckOfMenu( menu,	COMBAT_SKILL_POINT_FIELD); }break;
 				case 'd' :	{DoButtonCheckOfMenu( menu,	SKILL_FIELD); }break;
-				case 'z' :	{DoButtonCheckOfMenu( menu,	TODAY_NOTICE_FIELD); }break;
+				case 'z' : { AutoPlayShowSettings(); } break;
+				case 'Z' : { DoButtonCheckOfMenu(menu,TODAY_NOTICE_FIELD); } break;
+				case 'p' : { AutoPlayStop(); } break;
 				case 'x' :	{DoButtonCheckOfMenu( menu,	NATION_BBS_FIELD); }break;
 				case 'o' :	{DoButtonCheckOfMenu( menu,	OPTION_FIELD); }break;
-				case 'l' :	{DoButtonCheckOfMenu( menu,	MAIL_FIELD); }break;
+				case 'l' : { AutoPlayStart(); } break;
+				case 'L' : { DoButtonCheckOfMenu(menu,MAIL_FIELD); } break;
 				case 'm' :	{DoButtonCheckOfMenu( menu,	MAP_FIELD); }break;
 				case 'f' :	{DoButtonCheckOfMenu( menu,	FRIEND_FIELD); }break;
 				case 't' :	{DoButtonCheckOfMenu( menu,	PEACE_BATTLE_FIELD); }break;

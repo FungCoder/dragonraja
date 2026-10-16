@@ -11,6 +11,7 @@
 #include "Skill.h"
 #include "CurrentMsgMgr.h"
 #include "NumberAniMgr.h"
+#include "AutoPlayExtras.h"
 #include "Hong_Sub.h"
 #include "char.h"
 #include "Tool.h"
@@ -279,13 +280,13 @@ void DisplayChatAndNumber( void )
 		case	SPRITETYPE_NPC      :								
 			{																	
 				LPCHARACTER		ch = ( LPCHARACTER )g_OrderInfo.order[ i ].lpvData;
-				::DisplayChatMessage( ch );														
+				if (!DragonAutoPlayClient::HidePlayer(ch)) ::DisplayChatMessage( ch );
 			}break;
 		case	SPRITETYPE_NUMBER:
 			{
 				LPORDERTABLE o = &g_OrderInfo.order[ i ];							
 				o->show = 0;
-				if( tool_ViewNumber ){break;}
+				if( tool_ViewNumber || DragonAutoPlayClient::HideMagicEffects() ){break;}
 
 				LPNUMBERANI n = ( LPNUMBERANI ) o->lpvData;
 				switch( n->type )

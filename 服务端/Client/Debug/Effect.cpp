@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "CombatShotClient.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -3568,7 +3569,7 @@ LPCHARACTER ReturnMagicCheckedCharacter(int range_Check, MAGICLIST* lpML, int x,
 							InsertMagic(lpML->lpChar_Own, ch, 182, 9, 0, 0, ch->x, ch->y);
 						}
 						
-						g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y);
+						g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y, lpML->shot_action);
 						break;
 					}
 				case GREAT_PRAY:
@@ -3578,7 +3579,7 @@ LPCHARACTER ReturnMagicCheckedCharacter(int range_Check, MAGICLIST* lpML, int x,
 						case 0:
 						case 1:
 							{
-								g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height);
+								g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height, lpML->shot_action);
 								break;
 							}
 						}
@@ -3592,7 +3593,7 @@ LPCHARACTER ReturnMagicCheckedCharacter(int range_Check, MAGICLIST* lpML, int x,
 						case 0:
 						case 1:
 							{
-								g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height);
+								g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height, lpML->shot_action);
 								break;
 							}
 						}
@@ -3603,7 +3604,7 @@ LPCHARACTER ReturnMagicCheckedCharacter(int range_Check, MAGICLIST* lpML, int x,
 				case LIGHTNING_BREATH:
 					{ //< CSD-021021
 						InsertMagic(lpML->lpChar_Own, ch, lpML->next_Effect, 9, ch->x, ch->y-ch->height, ch->x, ch->y-ch->height);
-						g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height);
+						g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height, lpML->shot_action);
 						break;
 					} //> CSD-021021
 /*
@@ -3612,7 +3613,7 @@ LPCHARACTER ReturnMagicCheckedCharacter(int range_Check, MAGICLIST* lpML, int x,
 						if( lpML->lpChar_Own != ch )
 						{							
 							InsertMagic(lpML->lpChar_Own, ch, lpML->next_Effect, 9, ch->x, ch->y-ch->height, ch->x, ch->y-ch->height);
-							g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height);						
+							g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height, lpML->shot_action);
 						}						
 						break;
 					}
@@ -3652,12 +3653,12 @@ LPCHARACTER ReturnMagicCheckedCharacter(int range_Check, MAGICLIST* lpML, int x,
 						case ITEM_EFFECT_ICE:
 						case ITEM_EFFECT_LIGHTNING:
 							{
-								g_mgrBattle.SendMagicResult(lpML->magicNum, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height);
+								g_mgrBattle.SendMagicResultWithAction(lpML->magicNum, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height, lpML->shot_action);
 								break;
 							}
 						default:
 							{
-								g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height);
+								g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, ch->id, ch->x, ch->y-ch->height, lpML->shot_action);
 								break;
 							}
 						}	//> CSD-031007
@@ -4386,7 +4387,24 @@ int GetTargetHeight(int nMagic, LPCHARACTER pTarget)
 	return 25;
 }
 
-void InsertMagic(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration)
+void InsertMagic(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool firePattern, int next_Effect, bool failed, DWORD dwDuration)
+{
+    InsertMagicWithAction(lpChar_Own, lpChar_Target, magicNum, magicSubNum, s_X, s_Y, t_X, t_Y, firePattern, next_Effect, failed, dwDuration, 0);
+}
+
+static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction, uint64_t shotBatch);
+
+void InsertMagicWithAction(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction)
+{
+    InsertMagicContext(lpChar_Own, lpChar_Target, magicNum, magicSubNum, s_X, s_Y, t_X, t_Y, firePattern, next_Effect, failed, dwDuration, shotAction, 0);
+}
+
+void InsertMagicWithBatch(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotBatch)
+{
+    InsertMagicContext(lpChar_Own, lpChar_Target, magicNum, magicSubNum, s_X, s_Y, t_X, t_Y, firePattern, next_Effect, failed, dwDuration, 0, shotBatch);
+}
+
+static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction, uint64_t shotBatch)
 {
 	MAGICLIST*	TempList = NULL;
 	char		buf[30] = {0,};
@@ -4394,11 +4412,18 @@ void InsertMagic(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum
 	////////////////////// 0629 lkh 추가 ///////////////////////
 	if( lpChar_Own==NULL || lpChar_Target==NULL || magicNum==0 )	return;
 	
+    const unsigned batchSkill = shotBatch ? CombatShotBurstSkill(shotBatch) : 0;
+    if (shotBatch && !batchSkill) return;
 	MemAlloc( TempList, sizeof(MAGICLIST));
 	if(TempList == NULL)
+    {
 		MessageBox(NULL,"Memory Allocation Error..",0,MB_OK);
+        return;
+    }
 	
-	TempList->magicSerial = lpChar_Own->excute_MagicNum;			//실제 마법 번호(1~18?)
+	TempList->shot_action = shotAction;
+    TempList->shot_batch = shotBatch;
+	TempList->magicSerial = shotBatch ? int(batchSkill) : lpChar_Own->excute_MagicNum;			//실제 마법 번호(1~18?)
 	
 	TempList->magicNum = magicNum;									//실제 마법에 연결된 실행되고 있는 서브 마법 번호
 	TempList->magicSubNum = magicSubNum;							//같은 마법이지만 구현의 차이를 두기위한 서브 타입
@@ -5594,7 +5619,7 @@ MAGICLIST* FireArrow(MAGICLIST* lpML)//, int Num, int motion_Num, int speed, int
 			{
 				if(lpEL!=NULL)
 				{
-					g_mgrBattle.SendMagicResult(magicNum, lpML->lpChar_Own, attacked_Char->id, (int)(lpEL->x+lpEL->incx+.5), (int)(lpEL->y+lpEL->incy+.5));
+					g_mgrBattle.SendMagicResultWithAction(magicNum, lpML->lpChar_Own, attacked_Char->id, (int)(lpEL->x+lpEL->incx+.5), (int)(lpEL->y+lpEL->incy+.5), lpML->shot_action);
 				}
 				
 				if(lpML->next_Effect==0)
@@ -6353,7 +6378,7 @@ MAGICLIST* SampleMagic1(MAGICLIST* lpML)//, int Num, int motion_Num, int max_Obj
 				{
 					if( lpEL && lpML->magicSerial!=0 )
 					{
-						g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own , attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5));
+						g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own , attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5), lpML->shot_action);
 					}
 					
 					InsertMagic(lpML->lpChar_Own,attacked_Char, lpML->next_Effect, 9, 0, 0, attacked_Char->x, attacked_Char->y);
@@ -6560,7 +6585,7 @@ MAGICLIST* SampleMagic1_1(MAGICLIST* lpML)//, int Num, int motion_Num, int max_O
 				{
 					if(lpEL && lpML->magicSerial!=0 )
 					{
-						g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5));
+						g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5), lpML->shot_action);
 					}
 					
 					lpEL->trans_Level-=4;//lpML->trans_Level/EffList[lpEL->sprite_Num].MaxFrame;
@@ -6738,7 +6763,7 @@ MAGICLIST*	SampleMagic2(MAGICLIST*	lpML, int Num, int motion_Num, int speed, int
 				crash_Result=BoxAndBoxCrash(lpEnemy->x-16,lpEnemy->y-32,32,32,(lpEL->x+(int)(lpEL->incx+.5)) - 16,(lpEL->y+(int)(lpEL->incy+.5)) - 16,32,32);
 				if(crash_Result)
 				{
-					g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpEnemy->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5));
+					g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpEnemy->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5), lpML->shot_action);
 					break;
 				}
 				lpEnemy=lpEnemy->lpNext;
@@ -7298,18 +7323,18 @@ MAGICLIST*	SampleMagic4(MAGICLIST*	lpML)
 								case HOLY_CURE:	// 030415 kyo
 									{
 										::InsertMagic(lpML->lpChar_Own, lpML->lpChar_Own,lpML->next_Effect, 0, 0, 0, lpML->tarx, lpML->tary);
-										g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Own->id, lpML->tarx, lpML->tary); 
+										g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Own->id, lpML->tarx, lpML->tary, lpML->shot_action);
 										break;
 									}
 								case GREAT_SHIELD:
 								case GREAT_PRAY:
 									{
-										g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Own->id, lpML->tarx, lpML->tary); 
+										g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Own->id, lpML->tarx, lpML->tary, lpML->shot_action);
 										break;
 									}
 								default:
 									{
-										g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary); 
+										g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary, lpML->shot_action);
 										break;
 									}
 								} //> CSD-021015
@@ -7337,7 +7362,7 @@ MAGICLIST*	SampleMagic4(MAGICLIST*	lpML)
 							case AUTHORITY_OF_ATHYAS:	// 030415 kyo
 							case RESTORE_AUTHORITY: // 030523 kyo
 								{
-									g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary);
+									g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary, lpML->shot_action);
 									break;
 								}
 							} //> CSD-021015
@@ -7351,7 +7376,7 @@ MAGICLIST*	SampleMagic4(MAGICLIST*	lpML)
 						{
 						case TURN_UNDEAD:
 							{
-								g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary);
+								g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary, lpML->shot_action);
 								break;
 							}
 						}
@@ -7379,7 +7404,7 @@ MAGICLIST*	SampleMagic4(MAGICLIST*	lpML)
 					case DARK_EXTREME:
 					case WIND_EXTREME:
 						{
-							g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary);
+							g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary, lpML->shot_action);
 							DeleteList(&(lpML->EffHead), lpEL);
 							return NULL;
 						}
@@ -7405,7 +7430,7 @@ MAGICLIST*	SampleMagic4(MAGICLIST*	lpML)
 					case GUST:
 						{
 							InsertMagic(lpML->lpChar_Own, lpML->lpChar_Target, lpML->next_Effect, lpML->magicSubNum, 0, 0, lpML->tarx, lpML->tary);
-							g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary);
+							g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary, lpML->shot_action);
 							DeleteList(&(lpML->EffHead), lpEL);
 							return NULL;
 						}
@@ -8451,7 +8476,7 @@ MAGICLIST* SampleMagic8(MAGICLIST* lpML)		//스프라이트의 고유번호
 									
 									if(lpEL!=NULL && lpML->magicSerial!=0 )
 									{
-										g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5));
+										g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5), lpML->shot_action);
 									}
 									
 									InsertMagic(lpML->lpChar_Own,attacked_Char, lpML->next_Effect , 9, 0,0,attacked_Char->x,attacked_Char->y);	
@@ -8466,7 +8491,7 @@ MAGICLIST* SampleMagic8(MAGICLIST* lpML)		//스프라이트의 고유번호
 							{
 								if (lpEL!=NULL && lpML->magicSerial != 0)
 								{
-									g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5));
+									g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5), lpML->shot_action);
 								}
 								
 								InsertMagic(lpML->lpChar_Own, attacked_Char, lpML->next_Effect ,9,0,0,attacked_Char->x,attacked_Char->y);
@@ -8908,7 +8933,7 @@ MAGICLIST* SampleMagic9(MAGICLIST* lpML)//, int Num, int motion_Num, int speed, 
 			{
 				if( lpEL && lpML->magicSerial )
 				{
-					g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5));    
+					g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5), lpML->shot_action);
 				}
 				
 				DeleteList(&(lpML->EffHead), lpEL);
@@ -9480,7 +9505,7 @@ MAGICLIST*	SampleMagic25(MAGICLIST*	lpML)
 				  if (attacked_Char != NULL && attacked_Char->condition == CON_NORMAL && !attacked_Char->bCrash)
 				  { // 충돌한 인물이 있으면
 					  lpML->flag=1;
-					  g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x + lpEL->tarx, lpEL->y + lpEL->tary);
+					  g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x + lpEL->tarx, lpEL->y + lpEL->tary, lpML->shot_action);
 				  }
 				  
 				  target_Type = true;
@@ -9502,7 +9527,7 @@ MAGICLIST*	SampleMagic25(MAGICLIST*	lpML)
 				  {
 					  InsertMagic(attacked_Char, attacked_Char, lpML->next_Effect, lpML->magicSubNum, 0, 0, attacked_Char->x, attacked_Char->y);
 					  lpML->flag = 1;
-					  g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, attacked_Char->x, attacked_Char->y);
+					  g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, attacked_Char->x, attacked_Char->y, lpML->shot_action);
 				  }
 				  
 				  target_Type = true;
@@ -9521,7 +9546,7 @@ MAGICLIST*	SampleMagic25(MAGICLIST*	lpML)
 					  if (nCount == 5)
 					  {
 						  InsertMagic(attacked_Char, attacked_Char, lpML->next_Effect, lpML->magicSubNum, 0, 0, attacked_Char->x, attacked_Char->y);
-						  g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x + lpEL->tarx, lpEL->y + lpEL->tary);
+						  g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x + lpEL->tarx, lpEL->y + lpEL->tary, lpML->shot_action);
 					  }
 				  }
 				  
@@ -9536,7 +9561,7 @@ MAGICLIST*	SampleMagic25(MAGICLIST*	lpML)
 				  {
 					  InsertMagic(attacked_Char, attacked_Char, lpML->next_Effect, lpML->magicSubNum, 0, 0, attacked_Char->x, attacked_Char->y);
 					  lpML->flag=1;
-					  g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x + lpEL->tarx, lpEL->y + lpEL->tary);
+					  g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x + lpEL->tarx, lpEL->y + lpEL->tary, lpML->shot_action);
 					  DeleteList(&(lpML->EffHead), lpEL);
 					  lpEL = lpML->EffHead;
 					  continue;
@@ -9617,7 +9642,7 @@ MAGICLIST*	SampleMagic25(MAGICLIST*	lpML)
 					if (g_lpMT[lpML->magicSerial].avail_Type < 2 || 
 						(g_lpMT[lpML->magicSerial].avail_Type>=2 && IsHarmfulMagic(lpML->magicSerial)))
 					{
-						g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary);
+						g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary, lpML->shot_action);
 					}
 					else
 					{
@@ -9860,7 +9885,7 @@ MAGICLIST* Firewall1(MAGICLIST* lpML)
 			{
 				if( lpEL && lpML->magicSerial )
 				{
-					g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5));
+					g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5), lpML->shot_action);
 				}
 				
 				InsertMagic(lpML->lpChar_Own,attacked_Char,lpML->next_Effect, 9, 0, 0,attacked_Char->x,attacked_Char->y);
@@ -10419,7 +10444,7 @@ MAGICLIST* Homing(MAGICLIST* lpML)//, int Num, int motion_Num, int max_Object, i
 			{
 				if(lpEL )
 				{
-					g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5) );
+					g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, attacked_Char->id, lpEL->x+(int)(lpEL->incx+.5), lpEL->y+(int)(lpEL->incy+.5) , lpML->shot_action);
 				}
 				
 				InsertMagic(lpML->lpChar_Own,attacked_Char, lpML->next_Effect, 9, 0, 0,attacked_Char->x,attacked_Char->y);
@@ -10713,7 +10738,7 @@ MAGICLIST*	WallCreate(MAGICLIST*	lpML)
 						{	
 							if (lpEL)
 							{
-								g_mgrBattle.SendMagicResult(magicNum, lpML->lpChar_Own, attacked_Char->id, (int)(lpEL->x+lpEL->incx+.5), (int)(lpEL->y+lpEL->incy+.5));
+								g_mgrBattle.SendMagicResultWithAction(magicNum, lpML->lpChar_Own, attacked_Char->id, (int)(lpEL->x+lpEL->incx+.5), (int)(lpEL->y+lpEL->incy+.5), lpML->shot_action);
 							}
 						
 							InsertMagic(lpML->lpChar_Own, attacked_Char, g_lpET[lpML->magicSerial].impect_Effect_Num, 9, 0, 0, attacked_Char->x, attacked_Char->y - attacked_Char->height);
@@ -11711,7 +11736,7 @@ MAGICLIST*	SampleMagic_Type4_Like(MAGICLIST*	lpML)
 							if (g_lpMT[lpML->magicSerial].avail_Type < 2 || 
 								(g_lpMT[lpML->magicSerial].avail_Type >=2 && IsHarmfulMagic(lpML->magicSerial)))
 							{	//< CSD-TW-030606
-								g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary);
+								g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary, lpML->shot_action);
 							}	//> CSD-TW-030606
 							else
 							{
@@ -11779,7 +11804,7 @@ MAGICLIST*	SampleMagic_Type4_Like(MAGICLIST*	lpML)
 						if (g_lpET[lpML->magicNum].end_Time == 0)
 						{
 							CharDoAni(lpML->lpChar_Own, lpML->lpChar_Own->direction , lpML->lpChar_Own->basicAction);
-							g_mgrBattle.SendMagicResult(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary);
+							g_mgrBattle.SendMagicResultWithAction(lpML->magicSerial, lpML->lpChar_Own, lpML->lpChar_Target->id, lpML->tarx, lpML->tary, lpML->shot_action);
 							DeleteList(&(lpML->EffHead), lpEL);
 							return NULL;
 						}

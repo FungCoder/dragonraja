@@ -206,6 +206,8 @@
     <ClCompile Include="HigherLayers\CursingMagic.cpp" />
     <ClCompile Include="HigherLayers\DarkCombat.cpp" />
     <ClCompile Include="HigherLayers\DragonServer.cpp" />
+    <ClCompile Include="HigherLayers\AutoPlayServer.cpp" />
+    <ClCompile Include="HigherLayers\CombatShotServer.cpp" />
     <ClCompile Include="HigherLayers\dragonserver2.cpp" />
     <ClCompile Include="HigherLayers\DualManager.cpp" />
     <ClCompile Include="HigherLayers\dungeon.cpp" />

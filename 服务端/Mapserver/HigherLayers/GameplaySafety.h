@@ -1,5 +1,6 @@
 #pragma once
 #include <cstring>
+#include <cstddef>
 
 inline bool IsRegularMonsterRespawnEligible(bool ordinaryMapMonster,
     int eventNumber, int bossMarker, int bossPhase, bool tamed)
@@ -39,6 +40,23 @@ void ClearRemovedNpcSlot(Npc& npc, int& activeCount, ReleaseTile releaseTile)
 inline bool IsGameplayIndexValid(int index, int capacity)
 {
     return index >= 0 && index < capacity;
+}
+
+template<class Item, std::size_t Capacity>
+Item* GetGameplayArrayItem(Item (&items)[Capacity], int index)
+{
+    return IsGameplayIndexValid(index, static_cast<int>(Capacity)) ?
+        &items[index] : nullptr;
+}
+
+template<class Item, std::size_t Pages, std::size_t Rows, std::size_t Columns>
+Item* GetGameplayArrayItem(Item (&items)[Pages][Rows][Columns],
+    int page, int row, int column)
+{
+    return IsGameplayIndexValid(page, static_cast<int>(Pages)) &&
+        IsGameplayIndexValid(row, static_cast<int>(Rows)) &&
+        IsGameplayIndexValid(column, static_cast<int>(Columns)) ?
+        &items[page][row][column] : nullptr;
 }
 
 inline bool IsTradeItemIndexValid(int index, int capacity)

@@ -2,6 +2,7 @@
 #define	__EFFECT_H__
 
 #include "ddraw.h"
+#include <stdint.h>
 //#include "hong_sprite.h"
 
 
@@ -308,6 +309,8 @@ struct USEEFFECTLIST // 이동하는 스프라이트 찍을 경우 사용
 //
 struct MAGICLIST
 {
+    uint64_t shot_action;
+    uint64_t shot_batch;
 	int	magicSerial;		   //실제 매직 번호
 	int	magicNum;			     // 매직 번호
 	int	magicSubNum;		   // 매직 서브 번호
@@ -355,6 +358,8 @@ struct MAGICLIST
 
 	MAGICLIST()
 	{
+        shot_action = 0;
+        shot_batch = 0;
 		lpChar_Own = NULL;
 		lpChar_Target = NULL;
 		EffHead = NULL;
@@ -630,6 +635,8 @@ extern bool	RandomThrowEffect(int nKind, LPCHARACTER ch, LPCHARACTER tchar);
 extern bool RbuttonContinue( int magic_Num, LPCHARACTER scr=Hero, LPCHARACTER dcr=Hero, int x=0, int y=0);			//마우스 오른쪽 버튼을 계속 누르고 있는 경우 실행되는 마법
 // 마법 리스트에 효과 마법 등록 (인자:이펙트의 고유번호/중점좌표 X,Y/시전자 이미지 변화시키는 마법에서 사용->(1~6 사이의 숫자로 6자리까지) 
 extern void InsertMagic(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool firePattern=0, int next_Effect=0, bool failed=0, DWORD dwDuration = 0);
+extern void InsertMagicWithAction(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction);
+extern void InsertMagicWithBatch(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotBatch);
 // 이펙트 리스트에 마법 리스트 등록 (인자:이펙트의 고유번호/모션 카운트(생성/중간/종말)/스피드/방향/Trans방법/투명도/마지막 프레임           
 extern void InsertEffect(MAGICLIST *Temp, int start_Frame=0, int nOffX = 0, int nOffY = 0);
 // 실제 효과1(효과 스프라이트)를 화면에 보여줌 (인자:Trnas 방법/투명도/마지막 프레임)

@@ -1,4 +1,5 @@
 #include "recvmsg.h"
+#include "../../Library/Shared/PacketSafety.h"
 #include "servertable.h"
 //#include "playermanager.h"
 #include "monitor.h"
@@ -58,6 +59,7 @@ DWORD GetNewCN( void )
 
 void __stdcall ReceivedMsgFromServer(DWORD dwConnectionIndex, char* pMsg,DWORD dwLength)
 {
+	if (!pMsg || dwLength < 1) return;
 	BYTE bID;
 	bID = (BYTE)pMsg[0];
 	
@@ -154,6 +156,7 @@ void __stdcall ReceivedMsgFromServer(DWORD dwConnectionIndex, char* pMsg,DWORD d
 			if (dwLength < 1 + 4 + sizeof(t_header)) 
 			{
 				MyLog(LOG_NORMAL, "PTCL_USER_CMD_TO_MAP_SERVER :: Too short packet(%d)", dwLength);
+				break;
 			}
 			
 			DWORD dwUniqID = 0;
@@ -162,6 +165,12 @@ void __stdcall ReceivedMsgFromServer(DWORD dwConnectionIndex, char* pMsg,DWORD d
 			t_packet raja_packet;
 			memset(&raja_packet, 0, sizeof(t_packet));
 			memcpy(raja_packet.h.data, pMsg+1+4, sizeof(t_header));
+			if (!DragonPacketSafety::IsCompleteFrameValid(dwLength - 1 - 4,
+				raja_packet.h.header.size, sizeof(t_header), sizeof(raja_packet.u.data)))
+			{
+				MyLog(LOG_NORMAL, "Invalid forwarded packet length: %lu", dwLength);
+				break;
+			}
 			memcpy(raja_packet.u.data, pMsg+1+4+sizeof(t_header), raja_packet.h.header.size);
 			// chan78's comments 2000/11/01
 			// ----------------------------
@@ -191,6 +200,8 @@ void __stdcall ReceivedMsgFromServer(DWORD dwConnectionIndex, char* pMsg,DWORD d
 				}
 			}
 
+			if (ServerID < DRAGON_CONNECTIONS_START || ServerID >= DRAGON_MAX_CONNECTIONS) break;
+
 			if (connections[ServerID].state == CONNECT_CHANGING_MAP)
 			{
 				if (raja_packet.h.header.type != CMD_CHANGE_MAP_DETECTED)
@@ -199,7 +210,7 @@ void __stdcall ReceivedMsgFromServer(DWORD dwConnectionIndex, char* pMsg,DWORD d
 				}
 			}
 			// Raja�� Command Handler�� Packet�� �Ѱ� �ش�.
-			HandleCommand(ServerID, &raja_packet);
+			HandleUserCommand(ServerID, &raja_packet);
 			break;
 		}	//> CSD-HK-030829
 	case PTCL_AGENT_TO_MAP_REQUEST_ADD_USER:

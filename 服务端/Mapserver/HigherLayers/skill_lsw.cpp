@@ -617,8 +617,11 @@ void RecvCMD_SKILL_MASTER_MULTI_RARE_MAKE(const int cn, t_packet *p)
 	RecvSrcItem[1]=	pSMMRM->MRS.SrcData[1].attr;
 
 	ITEMATTR NowSrcItem[2];
-	NowSrcItem[0] =	*GetItemByPOS(ch,pSMMRM->MRS.SrcData[0].pos);
-	NowSrcItem[1] =	*GetItemByPOS(ch,pSMMRM->MRS.SrcData[1].pos);
+	ItemAttr* firstSource = GetItemByPOS(ch,pSMMRM->MRS.SrcData[0].pos);
+	ItemAttr* secondSource = GetItemByPOS(ch,pSMMRM->MRS.SrcData[1].pos);
+	if (!firstSource || !secondSource) return;
+	NowSrcItem[0] = *firstSource;
+	NowSrcItem[1] = *secondSource;
 
 	if(memcmp(RecvSrcItem,NowSrcItem,sizeof(ItemAttr))){return;}//辑滚客 努扼捞攫飘啊 促辅聪促.
 	if(RecvSrcItem[0].item_no != RecvSrcItem[0].item_no){return;}//酒捞袍 锅龋啊 促福搁 钦磨 荐 绝嚼聪促.
