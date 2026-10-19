@@ -16,11 +16,11 @@
 
 ## 客户端累积补丁
 
-[下载客户端补丁 2026.10.19-p6-preview1（Win32，约2MB）](https://github.com/FungCoder/dragonraja/releases/download/client-2026.10.19-p6-preview1/DragonRajaClientPatch-2026.10.19-p6-preview1-win32.zip) · [发行说明与校验文件](https://github.com/FungCoder/dragonraja/releases/tag/client-2026.10.19-p6-preview1)。
+[下载客户端补丁 2026.10.19-p7-preview1（Win32，约2MB）](https://github.com/FungCoder/dragonraja/releases/download/client-2026.10.19-p7-preview1/DragonRajaClientPatch-2026.10.19-p7-preview1-win32.zip) · [发行说明与校验文件](https://github.com/FungCoder/dragonraja/releases/tag/client-2026.10.19-p7-preview1)。
 
 先完整解压上方配套客户端，关闭游戏并将原`dragonraja.exe`另存备用，再把补丁中的`dragonraja.exe`覆盖到完整客户端根目录。保留自己的`dragon.ini`、`autoplay.ini`、DLL及游戏资源。补丁为累积更新，无需逐个安装历史版本；程序哈希和版本要求见包内`client-patch-manifest.json`。
 
-**本预览补丁使用战斗协议6，要求服务端采用源码提交`6125ed051b313bc711c8d3d46969ee854482bbb6`配套构建；下方v1.0.2服务端运行包不能直接配用。** 相关源码通过8种构建和23项离线回归，补丁程序单独构建并核对打包内容；尚未完成本补丁的游戏内验收。云盘完整包尚未重新下载核验，依赖指纹以现有本地配套客户端为依据。
+**本预览补丁使用战斗协议7，要求服务端采用源码提交`ce0d4d985bbf7e4b617e3534b85768657bfae895`配套构建；下方v1.0.2服务端运行包不能直接配用。** 相关源码通过8种构建和23项离线回归，补丁程序单独构建并核对打包内容；尚未完成本补丁的游戏内验收。云盘完整包尚未重新下载核验，依赖指纹以现有本地配套客户端为依据。
 
 ## 服务端与数据库下载
 
