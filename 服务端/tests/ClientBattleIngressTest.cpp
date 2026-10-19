@@ -35,7 +35,8 @@ int main()
         CMD_COMBAT_RESULT_H, CMD_COMBAT_RESULT_M, CMD_COMBAT_RESULT_S,
         CMD_COMBAT_RESULT_T, CMD_COMBAT_INIT, CMD_BATTLE_DAMAGE, CMD_BATTLE_MESSAMGE,
         DragonCombatShot::AckCommand, DragonCombatShot::IssuedCommand,
-        DragonCombatShot::BurstIssuedCommand, DragonCombatShot::ArrowIssuedCommand, CMD_THROW_RESULT};
+        DragonCombatShot::BurstIssuedCommand, DragonCombatShot::ArrowIssuedCommand,
+        DragonCombatShot::MagicIssuedCommand, CMD_THROW_RESULT};
     for (unsigned command : serverCommands)
     {
         Require(!IsPayloadAllowed(command, 0), "server command with empty payload");

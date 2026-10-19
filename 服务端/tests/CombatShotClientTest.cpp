@@ -13,7 +13,7 @@
 enum { THROW_ARROW = 194, THROW_KNIFE = 195, THROW_FIRE_ARROW = 665,
     THROW_ICE_KNIFE = 666, THROW_SNOW_BALL = 193, THROW_WATER_BALL = 661,
     THROW_BIG_GULP = 663, MK_WARNING = 1, FIRE_ARROW = 29, ICE_ARROW = 38,
-    SPRITETYPE_ITEM = 50, TILE_SIZE = 32 };
+    SPRITETYPE_ITEM = 50, TILE_SIZE = 32, FIRE_BALL = 30, ICE_BALL = 39 };
 static struct CharacterFixture
 {
     unsigned id = 1;
@@ -36,6 +36,8 @@ struct t_packet
 static std::vector<t_packet> sent;
 static void QueuePacket(t_packet* packet, int) { sent.push_back(*packet); }
 static unsigned animations = 0, warnings = 0, animationLevel = 0;
+static unsigned magicAnimations = 0;
+static void CreateSingleCastRoot(t_server_magic_execute*, uint64_t);
 struct BattleFixture
 {
     void RecvThrowAttack(t_server_throw_attack* packet)
@@ -47,10 +49,36 @@ struct BattleFixture
         ++animations;
     }
     void Message(int, const char*, ...) { ++warnings; }
+    void RecvMagicExecuteWithAction(t_server_magic_execute* packet, uint64_t action)
+    {
+        ++magicAnimations;
+        Hero->excute_MagicNum = packet->nMagic;
+        CreateSingleCastRoot(packet, action);
+    }
 };
 static BattleFixture g_mgrBattle;
 #include "CombatShotClientProduction.inc"
 #include "CombatBurstGeneratorFixture.h"
+static void CreateSingleCastRoot(t_server_magic_execute* packet, uint64_t action)
+{
+    static CharacterFixture target;
+    target.id = 2;
+    LPCHARACTER pCaster = Hero;
+    LPCHARACTER pTarget = packet->idTarget == Hero->id ? Hero : &target;
+    const int nMagic = packet->nMagic, nX = packet->nX, nY = packet->nY;
+    const bool bFail = packet->bFailed, bPattern = false;
+    switch (nMagic)
+    {
+#include "SingleCastRootCasesProduction.inc"
+    default: std::abort();
+    }
+}
+static void LinkSingleCastRoot(MAGICLIST* pEffect)
+{
+    LPCHARACTER pCaster = pEffect->lpChar_Own, pTarget = pEffect->lpChar_Target;
+    const int nMagic = pEffect->magicSerial;
+#include "SingleCastLinkProduction.inc"
+}
 static void Require(bool ok, const char* scenario)
 {
     if (!ok) { std::cerr << scenario << '\n'; std::exit(1); }
@@ -272,6 +300,38 @@ int main()
         CombatShotReceive(ArrowIssuedCommand, &arrow, sizeof(arrow));
         g_ClientTime += LifetimeMs; generated.clear(); shooter.Shoot(Hero, &target);
         Require(generated.empty(), "expired paid arrow cannot become an unversioned projectile");
+    }
+    for (unsigned magic : {unsigned(FireBallMagic), unsigned(IceBallMagic)})
+    for (unsigned target : {1u, 2u})
+    {
+        nextAction += 1000;
+        ArrowIssued cast = {{Version, hello.nonce, nextAction, 1, uint16_t(target), 120, 140, LifetimeMs}, uint16_t(magic)};
+        const unsigned beforeCast = magicAnimations;
+        CombatShotReceive(MagicIssuedCommand, &cast, sizeof(cast) - 1);
+        auto badCast = cast; badCast.magic = FireArrowMagic;
+        CombatShotReceive(MagicIssuedCommand, &badCast, sizeof(badCast));
+        badCast = cast; ++badCast.shot.nonce;
+        CombatShotReceive(MagicIssuedCommand, &badCast, sizeof(badCast));
+        Require(magicAnimations == beforeCast, "short, wrong-family and stale cast confirmations are refused");
+        g_lpET[FireBallMagic].next_Effect = 156; g_lpET[IceBallMagic].next_Effect = 186;
+        generated.clear();
+        CombatShotReceive(MagicIssuedCommand, &cast, sizeof(cast));
+        CombatShotReceive(MagicIssuedCommand, &cast, sizeof(cast));
+        Require(magicAnimations == beforeCast + 1 && generated.size() == 1,
+            "one confirmation creates exactly one real factory root");
+        MAGICLIST root = generated[0];
+        Require(root.magicSerial == magic && root.shot_action == nextAction &&
+            root.magicSubNum == (target == 1 ? 1 : 0), "target and ground-aim roots retain action and original sub-mode");
+        Require(!CombatShotTake(1, target, THROW_ARROW), "cast cannot be stolen by throw animation");
+        Hero->excute_MagicNum = 999;
+        generated.clear(); LinkSingleCastRoot(&root);
+        Require(generated.size() == 1 && generated[0].shot_action == nextAction &&
+            generated[0].magicSerial == magic && generated[0].magicNum == (magic == FireBallMagic ? 156 : 186),
+            "actual child link carries immutable action and type after another selection");
+        CombatShotSendHit(generated[0].shot_action, 2, 120, 140, false);
+        memcpy(&hit, sent.back().u.data, sizeof(hit));
+        Require(hit.action == nextAction && sent.back().h.header.type == HitCommand,
+            "spell projectile uses shared result format");
     }
     const size_t before = sent.size();
     CombatShotReset();

@@ -25,11 +25,13 @@ public:
 public: 
   bool Ready(LPCHARACTER pCaster, int nMagic, int nReady);
   bool Apply(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int nX, int nY, bool bFail = false);
+  bool ApplyWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int nX, int nY, bool bFail, uint64_t action);
   
   bool IsEnable(int nMagic) const;
 
 protected:
   bool AddEffect(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int nX, int nY, bool bFail);
+  bool AddEffectWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int nX, int nY, bool bFail, uint64_t action);
 
 private:
   bool IsContinue(int nMagic) const;

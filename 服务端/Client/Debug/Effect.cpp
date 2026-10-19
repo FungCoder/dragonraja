@@ -4392,19 +4392,24 @@ void InsertMagic(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum
     InsertMagicWithAction(lpChar_Own, lpChar_Target, magicNum, magicSubNum, s_X, s_Y, t_X, t_Y, firePattern, next_Effect, failed, dwDuration, 0);
 }
 
-static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction, uint64_t shotBatch);
+static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction, uint64_t shotBatch, int magicType);
 
 void InsertMagicWithAction(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction)
 {
-    InsertMagicContext(lpChar_Own, lpChar_Target, magicNum, magicSubNum, s_X, s_Y, t_X, t_Y, firePattern, next_Effect, failed, dwDuration, shotAction, 0);
+    InsertMagicContext(lpChar_Own, lpChar_Target, magicNum, magicSubNum, s_X, s_Y, t_X, t_Y, firePattern, next_Effect, failed, dwDuration, shotAction, 0, 0);
+}
+
+void InsertMagicWithActionAndType(LPCHARACTER own, LPCHARACTER target, int effect, int sub, int sx, int sy, int tx, int ty, bool pattern, int next, bool failed, DWORD duration, uint64_t action, int magicType)
+{
+    InsertMagicContext(own, target, effect, sub, sx, sy, tx, ty, pattern, next, failed, duration, action, 0, magicType);
 }
 
 void InsertMagicWithBatch(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotBatch)
 {
-    InsertMagicContext(lpChar_Own, lpChar_Target, magicNum, magicSubNum, s_X, s_Y, t_X, t_Y, firePattern, next_Effect, failed, dwDuration, 0, shotBatch);
+    InsertMagicContext(lpChar_Own, lpChar_Target, magicNum, magicSubNum, s_X, s_Y, t_X, t_Y, firePattern, next_Effect, failed, dwDuration, 0, shotBatch, 0);
 }
 
-static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction, uint64_t shotBatch)
+static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool	firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction, uint64_t shotBatch, int magicType)
 {
 	MAGICLIST*	TempList = NULL;
 	char		buf[30] = {0,};
@@ -4429,8 +4434,8 @@ static void InsertMagicContext(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target
 	
 	TempList->shot_action = shotAction;
     TempList->shot_batch = singlePart ? 0 : shotBatch;
-	TempList->magicSerial = shotBatch ? int(batchSkill) :
-        ((shotAction && (magicNum == FIRE_ARROW || magicNum == ICE_ARROW)) ? magicNum : lpChar_Own->excute_MagicNum);			//실제 마법 번호(1~18?)
+	TempList->magicSerial = shotBatch ? int(batchSkill) : (shotAction && magicType ? magicType :
+        ((shotAction && (magicNum == FIRE_ARROW || magicNum == ICE_ARROW)) ? magicNum : lpChar_Own->excute_MagicNum));			//실제 마법 번호(1~18?)
 	
 	TempList->magicNum = magicNum;									//실제 마법에 연결된 실행되고 있는 서브 마법 번호
 	TempList->magicSubNum = magicSubNum;							//같은 마법이지만 구현의 차이를 두기위한 서브 타입

@@ -939,20 +939,37 @@ void CBattleManager::RecvMagicCasting(WORD idCaster, t_client_magic_casting* pPa
 }	//> CSD-TW-030606
 
 void CBattleManager::RecvMagicExecute(WORD idCaster, t_client_magic_execute* pPacket)
+{
+    if (!pPacket) return;
+    if (DragonCombatShot::IsSingleCastMagic(pPacket->nMagic))
+    {
+        IssueProjectileMagic(idCaster, pPacket, sizeof(*pPacket));
+        return;
+    }
+    RecvMagicExecuteImpl(idCaster, pPacket, true);
+}
+
+bool CBattleManager::PrepareProjectileMagicExecute(WORD idCaster, t_client_magic_execute* pPacket)
+{
+    return pPacket && DragonCombatShot::IsSingleCastMagic(pPacket->nMagic) &&
+        RecvMagicExecuteImpl(idCaster, pPacket, false);
+}
+
+bool CBattleManager::RecvMagicExecuteImpl(WORD idCaster, t_client_magic_execute* pPacket, bool sendOwner)
 {	//< CSD-TW-030606
 	const int nMagic = pPacket->nMagic;
 	// 화염화살이나 얼음화살인 경우는 물리적 공격으로 처리
 	switch (nMagic)
 	{
     case FIRE_ARROW:
-    case ICE_ARROW: return;
+    case ICE_ARROW: return false;
 	}
 	
 	const WORD idTarget = pPacket->idTarget; // 마법 대상자 
 	CHARLIST* pCaster = ::GetCharListPtr(idCaster);
 	CHARLIST* pTarget = ::GetCharListPtr(idTarget);
-	if (pCaster == NULL || pTarget == NULL)  return;
-	if (!CanExecutePlayerMagic(idCaster, BYTE(nMagic))) return;
+	if (pCaster == NULL || pTarget == NULL)  return false;
+	if (!CanExecutePlayerMagic(idCaster, BYTE(nMagic))) return false;
 	// 효과벽에 대한 처리
 	const int nX = pPacket->nX;
 	const int nY = pPacket->nY;
@@ -960,7 +977,7 @@ void CBattleManager::RecvMagicExecute(WORD idCaster, t_client_magic_execute* pPa
 	if (!IsValid(nMagic, nX>>5, nY>>5))
 	{
 		pCaster->Message(MK_WARNING, 1, 4);
-		return;
+		return false;
 	}
 	
 	bool bFail = false;
@@ -995,6 +1012,7 @@ void CBattleManager::RecvMagicExecute(WORD idCaster, t_client_magic_execute* pPa
 		goto MAGIC_FAIL;
 	}
 	
+    if (DragonCombatShot::IsSingleCastMagic(nMagic)) pCaster->SendCharInfoBasic(MP, pCaster->Mana);
 	pCaster->ClearMagic(false); // 마법 사용이 되었음을 설정
 	// CSD-030806
 	g_pLogManager->SaveMagicExecute(nMagic, pCaster, pTarget, nX, nY);
@@ -1010,8 +1028,9 @@ MAGIC_FAIL:
 	m_packet.u.magic.server_magic_execute.nX = nX;
 	m_packet.u.magic.server_magic_execute.nY = nY;
 	m_packet.u.magic.server_magic_execute.bFailed = bFail;
-	::QueuePacket(connections, idCaster, &m_packet, 1);
+	if (sendOwner || bFail) ::QueuePacket(connections, idCaster, &m_packet, 1);
 	::CastMe2Other(idCaster, &m_packet);
+    return !bFail;
 }	//> CSD-TW-030606
 
 bool CBattleManager::PrepareMagicArrowShot(WORD idCaster, WORD idTarget, int x, int y, unsigned short& magic)
@@ -1042,17 +1061,17 @@ bool CBattleManager::PrepareMagicArrowShot(WORD idCaster, WORD idTarget, int x, 
 
 void CBattleManager::RecvMagicResult(WORD idCaster, t_client_magic_result* pPacket)
 {
-    if (!pPacket || DragonCombatShot::IsMagicArrow(pPacket->nMagic)) return;
+    if (!pPacket || DragonCombatShot::IsVersionedMagic(pPacket->nMagic)) return;
     RecvMagicResultImpl(idCaster, pPacket, false);
 }
 
-void CBattleManager::RecvAuthorizedMagicArrowResult(WORD idCaster, t_client_magic_result* pPacket)
+void CBattleManager::RecvAuthorizedMagicResult(WORD idCaster, t_client_magic_result* pPacket)
 {
-    if (!pPacket || !DragonCombatShot::IsMagicArrow(pPacket->nMagic)) return;
+    if (!pPacket || !DragonCombatShot::IsVersionedMagic(pPacket->nMagic)) return;
     RecvMagicResultImpl(idCaster, pPacket, true);
 }
 
-void CBattleManager::RecvMagicResultImpl(WORD idCaster, t_client_magic_result* pPacket, bool authorizedArrow)
+void CBattleManager::RecvMagicResultImpl(WORD idCaster, t_client_magic_result* pPacket, bool authorizedInstance)
 {
 	const WORD idTarget = pPacket->idTarget; // 마법을 사용한 대상자
 	CHARLIST* pCaster = ::GetCharListPtr(idCaster);
@@ -1075,25 +1094,25 @@ void CBattleManager::RecvMagicResultImpl(WORD idCaster, t_client_magic_result* p
 	// 석화에 걸려있으면 어떠한 마법도 적용을 받지 못함. 단 저주해제는 제외
 	if (pTarget->IsStone() && nMagic != REMOVE_CURSE)
 	{	
-		if (!authorizedArrow) pCaster->ClearMagic();
+		if (!authorizedInstance) pCaster->ClearMagic();
 		return;
 	}
 	// 마법 적용이 가능한지 검사
-	if (!authorizedArrow && !pCaster->CheckEnd(nMagic, g_curr_time))
+	if (!authorizedInstance && !pCaster->CheckEnd(nMagic, g_curr_time))
 	{ 
-		if (!authorizedArrow) pCaster->ClearMagic();
+		if (!authorizedInstance) pCaster->ClearMagic();
 		return;
 	}  
 	// 서로 공격 가능여부 검사
 	if (!IsBattle(pCaster, pTarget))
 	{
-		if (!authorizedArrow) pCaster->ClearMagic();
+		if (!authorizedInstance) pCaster->ClearMagic();
 		return;
 	}
 	
-	if (!(authorizedArrow ? FilterPlayerMagicResult(BYTE(nMagic), pCaster, pTarget) : FilterResult(pCaster, pTarget)))
+	if (!(authorizedInstance ? FilterPlayerMagicResult(BYTE(nMagic), pCaster, pTarget) : FilterResult(pCaster, pTarget)))
 	{
-		if (!authorizedArrow) pCaster->ClearMagic();
+		if (!authorizedInstance) pCaster->ClearMagic();
 		return;
 	}
 	

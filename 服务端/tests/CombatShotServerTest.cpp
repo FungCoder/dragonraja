@@ -19,11 +19,12 @@ enum { DRAGON_CONNECTIONS_START = 1, DRAGON_MAX_CONNECTIONS = 8,
     IK_THROW_EVENT = 60, WR_LONG1 = 70, WR_LONG2 = 71, WR_LONG3 = 72,
     CMD_SCRIPT_MESSAGE_BOX = 10273, TILE_SIZE = 32,
     REM_AREA_X = 21 * 32, REM_AREA_Y = 17 * 32, ALIVE_ = 1,
-    Num_Of_Magic = 256, REMOVE_CURSE = 78, MP = 1, MK_WARNING = 2 };
+    Num_Of_Magic = 256, REMOVE_CURSE = 78, MP = 1, MK_WARNING = 2, MK_NORMAL = 3,
+    FIRE_BALL = 30, ICE_BALL = 39, CON_FROZEN = 2 };
 static int MapNumber = 5;
 static uint64_t nowMs = 100;
 static DWORD g_curr_time = 10;
-static struct { int exhaust_MP = 10, magic_Type = 51; } Magic_Ref[Num_Of_Magic];
+static struct { int exhaust_MP = 10, magic_Type = 51, Excute_Type = 0; } Magic_Ref[Num_Of_Magic];
 static DWORD timeGetTime() { return DWORD(nowMs); }
 static ULONGLONG TestTickCount64() { return nowMs; }
 #define GetTickCount64 TestTickCount64
@@ -40,6 +41,9 @@ struct CHARLIST
     bool stone = false, prepared = true, doing = true, learned = true, enabled = true;
     bool filterAllowed = true, battleAllowed = true;
     int preparedMagic = FIRE_ARROW;
+    bool locked = true;
+    BYTE state = 0;
+    BYTE GetState() const { return state; }
     bool IsPlayer() const { return player; }
     bool IsDead() const { return Hp <= 0; }
     bool IsArrow() const { return hasArrow; }
@@ -50,9 +54,10 @@ struct CHARLIST
     int GetWeaponKind() const { return weapon; }
     unsigned GetCombatLevel(unsigned) const { return level; }
     bool IsStone() const { return stone; }
-    bool CheckDoing(BYTE, DWORD) const { return doing; }
+    bool CheckDoing(BYTE skill, DWORD) const { return doing && (Magic_Ref[skill].Excute_Type == 0 || locked); }
     bool CheckEnd(BYTE selected, DWORD) { magic = selected; return true; }
     void ClearMagic() { magic = 0; }
+    void ClearMagic(bool lock) { locked = lock; }
     void SendCharInfoBasic(int, int) { ++manaUpdates; }
     void Message(int, int, int) {}
     void SetWanted(bool) {}
@@ -74,10 +79,17 @@ static auto g_lpMapFile = &mapFile;
 struct t_packet
 {
     struct { struct { unsigned short type = 0, size = 0; } header; } h;
-    union { char data[512]; struct { char default_msg[512]; } kein; } u;
+    union { char data[512]; t_magic magic; struct { char default_msg[512]; } kein; } u;
 };
 static std::vector<t_packet> sent;
 static void QueuePacket(t_connection*, int, t_packet* packet, int) { sent.push_back(*packet); }
+static std::vector<t_packet> observed;
+static void CastMe2Other(int, t_packet* packet) { observed.push_back(*packet); }
+static struct
+{
+    void SaveMagicExecute(int, CHARLIST*, CHARLIST*, int, int) {}
+} logManager;
+static auto g_pLogManager = &logManager;
 static std::atomic<unsigned> settlements(0);
 static std::atomic<int> settledKind(0);
 static std::atomic<unsigned> magicSettlements(0);
@@ -88,6 +100,12 @@ static bool CanExecutePlayerMagicArrow(int connection, BYTE magic)
         connections[connection].chrlst.preparedMagic == magic;
 }
 static void ResetAutoPlaySession(int connection) { connections[connection].chrlst.prepared = false; }
+static bool CanExecutePlayerMagic(int connection, BYTE magic)
+{
+    return connections[connection].chrlst.prepared &&
+        connections[connection].chrlst.preparedMagic == magic &&
+        connections[connection].chrlst.GetMagic() == magic;
+}
 struct MagicBattleFixture
 {
     void SetIndex(int index) { settledMagic = index; }
@@ -108,8 +126,12 @@ struct CBattleManager
     }
     bool PrepareMagicArrowShot(WORD, WORD, int, int, unsigned short&);
     void RecvMagicResult(WORD, t_client_magic_result*);
-    void RecvAuthorizedMagicArrowResult(WORD, t_client_magic_result*);
+    void RecvAuthorizedMagicResult(WORD, t_client_magic_result*);
     void RecvMagicResultImpl(WORD, t_client_magic_result*, bool);
+    void RecvMagicExecute(WORD, t_client_magic_execute*);
+    bool PrepareProjectileMagicExecute(WORD, t_client_magic_execute*);
+    bool RecvMagicExecuteImpl(WORD, t_client_magic_execute*, bool);
+    t_packet m_packet = {};
     bool IsMagic(int magic) const { return magic > 0 && magic < 200; }
     bool IsValid(BYTE, CHARLIST* actor) const { return actor->learned; }
     bool IsValid(BYTE, int x, int y) const { return x >= 0 && y >= 0 && x < 100 && y < 100; }
@@ -118,7 +140,8 @@ struct CBattleManager
     bool FilterMagic(CHARLIST* actor, CHARLIST*, int, int)
     {
         ++prepareCalls;
-        if (!actor->filterAllowed) return false;
+        if (!actor->filterAllowed || !actor->learned ||
+            actor->Mana < Magic_Ref[actor->GetMagic()].exhaust_MP) return false;
         actor->Mana -= Magic_Ref[actor->GetMagic()].exhaust_MP;
         return true;
     }
@@ -135,6 +158,7 @@ static CBattleManager battle;
 static auto g_pBattleManager = &battle;
 #include "../Mapserver/HigherLayers/PlayerSessionSafety.h"
 #include "MagicArrowAuthorityProduction.inc"
+#include "MagicExecuteAuthorityProduction.inc"
 #include "CombatShotServerProduction.inc"
 
 static void Require(bool ok, const char* scenario)
@@ -365,5 +389,112 @@ int main()
             "full action ledger rejects before payment");
         CancelCombatShots(1);
     }
+    for (unsigned magic : {unsigned(FireBallMagic), unsigned(IceBallMagic)})
+    {
+        CancelCombatShots(1);
+        caster.active = 0; caster.magic = caster.preparedMagic = magic;
+        caster.prepared = caster.doing = caster.locked = true;
+        caster.Mana = 100; caster.learned = caster.filterAllowed = true;
+        caster.tactics = TACTICS_Archery; caster.hasArrow = false;
+        t_client_magic_execute request = {};
+        request.nMagic = BYTE(magic); request.idTarget = 2; request.nX = request.nY = 100;
+        const unsigned beforeSpell = magicSettlements;
+        battle.RecvMagicExecute(1, &request);
+        Require(sent.back().h.header.type == MagicIssuedCommand && caster.Mana == 90,
+            "real execute handler pays once and publishes one spell instance");
+        ArrowIssued cast; memcpy(&cast, sent.back().u.data, sizeof(cast));
+        Require(cast.magic == magic && observed.back().h.header.type == CMD_MAGIC_EXECUTE,
+            "owner receives instance while observer keeps original execution message");
+        t_client_magic_result oldResult = {};
+        oldResult.nMagic = BYTE(magic); oldResult.idTarget = 2; oldResult.nX = oldResult.nY = 100;
+        battle.RecvMagicResult(1, &oldResult);
+        Require(magicSettlements == beforeSpell, "old spell result cannot bypass instance");
+        caster.magic = FIRE_ARROW;
+        Submit(HitFor(cast.shot)); Submit(HitFor(cast.shot));
+        Require(magicSettlements == beforeSpell + 1 && settledMagic == magic &&
+            filteredMagic == magic && caster.magic == FIRE_ARROW && caster.Mana == 90,
+            "cast settles once with snapshot type without requiring arrows or changing selection");
+        caster.hasArrow = true; caster.magic = magic;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == 90,
+            "rapid repeat is refused by server before payment");
+        nowMs += MagicRepeatIntervalMs;
+        Require(IssueProjectileMagic(1, &request, sizeof(request)), "type-zero paid repeat remains legal");
+        ArrowIssued repeat; memcpy(&repeat, sent.back().u.data, sizeof(repeat));
+        Require(repeat.shot.action != cast.shot.action && caster.Mana == 80,
+            "a second accepted execute has a new paid instance");
+        auto failedCandidate = HitFor(repeat.shot); failedCandidate.target = 65000;
+        Submit(failedCandidate); Submit(HitFor(repeat.shot));
+        Require(magicSettlements == beforeSpell + 1, "invalid candidate spends spell before retries");
+        Magic_Ref[magic].Excute_Type = 1; caster.locked = true;
+        nowMs += MagicRepeatIntervalMs;
+        Require(IssueProjectileMagic(1, &request, sizeof(request)), "one-use cast accepted");
+        ArrowIssued oneUse; memcpy(&oneUse, sent.back().u.data, sizeof(oneUse));
+        nowMs += MagicRepeatIntervalMs;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == 70 &&
+            sent.back().h.header.type == CMD_MAGIC_EXECUTE && sent.back().u.magic.server_magic_execute.bFailed,
+            "one-use preparation refuses second execute before payment with original failure response");
+        Submit(HitFor(oneUse.shot));
+        Require(magicSettlements == beforeSpell + 2, "accepted in-flight cast survives later failed execute");
+        Magic_Ref[magic].Excute_Type = 0;
+        caster.magic = caster.preparedMagic = magic; caster.prepared = caster.doing = true;
+        caster.Mana = 0;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == 0,
+            "insufficient spell mana cannot mint instance");
+        caster.Mana = 100; caster.magic = magic; caster.prepared = false;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == 100,
+            "execute without actual preparation is refused");
+        caster.prepared = true; caster.learned = false;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == 100,
+            "unlearned spell cannot receive instance");
+        caster.learned = true; caster.magic = magic; caster.prepared = true;
+        request.nX = -1;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == 100,
+            "invalid execution position is refused before payment");
+        request.nX = 100;
+        Require(IssueProjectileMagic(1, &request, sizeof(request)), "expiring spell accepted");
+        memcpy(&cast, sent.back().u.data, sizeof(cast)); nowMs += LifetimeMs;
+        Submit(HitFor(cast.shot));
+        Require(magicSettlements == beforeSpell + 2, "expired spell cannot settle");
+        CancelCombatShots(1);
+        Require(IssueProjectileMagic(1, &request, sizeof(request)), "death cancellation spell accepted");
+        memcpy(&cast, sent.back().u.data, sizeof(cast)); CancelCombatShots(1);
+        Submit(HitFor(cast.shot));
+        Require(magicSettlements == beforeSpell + 2, "death cancels paid spell");
+        caster.Mana = 10000;
+        nowMs += MagicRepeatIntervalMs;
+        Require(IssueProjectileMagic(1, &request, sizeof(request)), "shared ledger first spell slot");
+        caster.magic = 0;
+        for (unsigned index = 1; index < MaxOutstanding; ++index)
+            Require(IssueCombatShot(1, 2, 100, 100), "shared ledger remaining physical slots");
+        caster.magic = magic;
+        const int fullMana = caster.Mana;
+        nowMs += MagicRepeatIntervalMs;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == fullMana,
+            "physical and magic casts share capacity before any payment");
+        CancelCombatShots(1);
+        ResetCombatShotSession(1);
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == fullMana,
+            "unnegotiated spell does not charge mana");
+        nowMs += 201; RecvCombatShotHello(1, &hello, sizeof(hello));
+    }
+    caster.magic = caster.preparedMagic = FireBallMagic; caster.prepared = true;
+    caster.Mana = 100; caster.state = 0;
+    t_client_magic_execute timed = {};
+    timed.nMagic = FireBallMagic; timed.idTarget = 2; timed.nX = timed.nY = 100;
+    Require(IssueProjectileMagic(1, &timed, sizeof(timed)), "cadence session initial cast");
+    nowMs += 201;
+    const Hello renewed = {Version, 100};
+    RecvCombatShotHello(1, &renewed, sizeof(renewed));
+    Require(!IssueProjectileMagic(1, &timed, sizeof(timed)) && caster.Mana == 90,
+        "nonce replacement cannot reset same-character execution cadence");
+    nowMs += MagicRepeatIntervalMs - 201;
+    Require(IssueProjectileMagic(1, &timed, sizeof(timed)) && caster.Mana == 80,
+        "exact execution interval boundary is legal");
+    caster.state = CON_FROZEN; nowMs += MagicRepeatIntervalMs;
+    Require(!IssueProjectileMagic(1, &timed, sizeof(timed)) && caster.Mana == 80,
+        "frozen state doubles existing execution interval");
+    nowMs += MagicRepeatIntervalMs;
+    Require(IssueProjectileMagic(1, &timed, sizeof(timed)) && caster.Mana == 70,
+        "frozen execution interval boundary is legal");
     std::cout << "Production combat shot server tests passed\n";
 }

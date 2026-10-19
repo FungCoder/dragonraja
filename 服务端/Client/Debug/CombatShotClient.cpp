@@ -92,6 +92,19 @@ void CombatShotReceive(unsigned command, const void* data, size_t size)
         state.Accept(ack);
         return;
     }
+    if (command == MagicIssuedCommand && size == sizeof(ArrowIssued))
+    {
+        ArrowIssued cast = {};
+        memcpy(&cast, data, sizeof(cast));
+        if (!IsSingleCastMagic(cast.magic) || !state.CanAccept(cast.shot, Hero->id)) return;
+        state.Record(cast.shot, g_ClientTime, cast.magic);
+        state.ForgetPending();
+        t_server_magic_execute packet = {};
+        packet.nMagic = BYTE(cast.magic); packet.idCaster = cast.shot.caster;
+        packet.idTarget = cast.shot.target; packet.nX = cast.shot.x; packet.nY = cast.shot.y;
+        g_mgrBattle.RecvMagicExecuteWithAction(&packet, cast.shot.action);
+        return;
+    }
     if (command == BurstIssuedCommand && size == sizeof(BurstIssued))
     {
         BurstIssued burst = {};

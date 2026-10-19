@@ -538,7 +538,8 @@ void CBattleMgr::SendMagicCasting(BYTE nMagic)
 }	//> CSD-TW-030606
 
 void CBattleMgr::SendMagicExecute(BYTE nMagic, LPCHARACTER pTarget, int nX, int nY)
-{	//< CSD-TW-030606
+{
+    if (DragonCombatShot::IsSingleCastMagic(nMagic) && !CombatShotReady()) return;	//< CSD-TW-030606
 	if (pTarget == NULL)  pTarget = Hero;
 	// 마법 사용후 5초 이내에는 다시 캐스팅 할수 없도록 설정
 	Hero->castStartingTime = g_ClientTime + 4000;
@@ -573,7 +574,7 @@ void CBattleMgr::SendMagicExecute(BYTE nMagic, LPCHARACTER pTarget, int nX, int 
 		}
 	default:
 		{
-			nOffset = 800;
+			nOffset = DragonCombatShot::MagicRepeatIntervalMs;
 			break;
 		}
 	}
@@ -618,7 +619,7 @@ void CBattleMgr::SendMagicResultWithAction(WORD wdEffect, LPCHARACTER pCaster, W
         return;
     }
 	
-    if (pCaster == Hero && (DragonCombatShot::IsSkillShot(wdEffect) || DragonCombatShot::IsMagicArrow(wdEffect))) return;
+    if (pCaster == Hero && (DragonCombatShot::IsSkillShot(wdEffect) || DragonCombatShot::IsVersionedMagic(wdEffect))) return;
 	if (pCaster == Hero)
 	{
 		switch (wdEffect)
@@ -1819,6 +1820,11 @@ void CBattleMgr::RecvMagicCasting(t_server_magic_casting* pPacket)
 }	//> CSD-TW-030606
 
 void CBattleMgr::RecvMagicExecute(t_server_magic_execute* pPacket)
+{
+    RecvMagicExecuteWithAction(pPacket, 0);
+}
+
+void CBattleMgr::RecvMagicExecuteWithAction(t_server_magic_execute* pPacket, uint64_t action)
 {	//< CSD-030930
 	LPCHARACTER pCaster = ::ReturnCharacterPoint(pPacket->idCaster);
 	LPCHARACTER pTarget = ::ReturnCharacterPoint(pPacket->idTarget);
@@ -1837,7 +1843,7 @@ void CBattleMgr::RecvMagicExecute(t_server_magic_execute* pPacket)
 	pCaster->ready_Magic = 2;
 	
 	CMagicSys* pMagic = (CMagicSys*)GetBattle(1);
-	pMagic->Apply(pCaster, pTarget, nMagic, pPacket->nX, pPacket->nY, bFail);
+	pMagic->ApplyWithAction(pCaster, pTarget, nMagic, pPacket->nX, pPacket->nY, bFail, action);
 }	//> CSD-CSD-030930
 
 void CBattleMgr::RecvMagicResult(t_server_magic_result* pPacket)

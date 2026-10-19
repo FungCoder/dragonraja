@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 #include "MagicSys.h"
+#include "../../Library/Shared/CombatShotProtocol.h"
 
 #include "Char.h"
 #include "Map.h"
@@ -192,13 +193,13 @@ void CMagicSys::Effect(MAGICLIST* pEffect)
 			}	//> CSD-031020
 		default:
 			{
-				::InsertMagic(pCaster, pTarget,
+				::InsertMagicWithActionAndType(pCaster, pTarget,
 					pEffect->next_Effect,
 					pEffect->magicSubNum,
 					pEffect->x, pEffect->y,
 					pEffect->tarx, pEffect->tary, 
 					false, 0, false, 
-					pEffect->magic_Runtime);
+					pEffect->magic_Runtime, pEffect->shot_action, nMagic);
 				break;
 			}
 		}
@@ -265,6 +266,12 @@ bool CMagicSys::Ready(LPCHARACTER pCaster, int nMagic, int nReady)
 
 bool CMagicSys::Apply(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int nX, int nY, bool bFail)
 {
+    return ApplyWithAction(pCaster, pTarget, nMagic, nX, nY, bFail, 0);
+}
+
+bool CMagicSys::ApplyWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int nX, int nY, bool bFail, uint64_t action)
+{
+    if (pCaster == Hero && DragonCombatShot::IsSingleCastMagic(nMagic) && !bFail && !action) return false;
 	if (nMagic != RELIEF_AUTHORITY)	// 구원의 빛이 아니고
 	{
 		if (!IsAttackAble(pTarget))	// 죽어 있거나 기자 모드일 경우 
@@ -281,7 +288,7 @@ bool CMagicSys::Apply(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int 
 		goto MAGIC_FIAL;
 	}
 	
-	if (Hero == pCaster)
+	if (Hero == pCaster && !DragonCombatShot::IsSingleCastMagic(nMagic))
 	{	//시전 클라이턴트의 잔여 MP가 마법을 사용하는데 필요한 MP보다 많고 죽지 않은 경우 
 		if (SCharacterData.nCharacterHP > 0 && SCharacterData.nCharacterMP >= g_lpMT[nMagic].exhaust_MP)
 		{
@@ -339,7 +346,7 @@ bool CMagicSys::Apply(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int 
 			}
 		}
 		
-		if (!AddEffect(pCaster, pTarget, nMagic, nX, nY, bFail))
+		if (!AddEffectWithAction(pCaster, pTarget, nMagic, nX, nY, bFail, action))
 		{
 			OUTPUT(MK_WARNING, lan->OutputMessage(1, 29));	
 			goto MAGIC_FIAL;
@@ -552,6 +559,11 @@ bool CMagicSys::IsEnable(int nMagic) const
 
 bool CMagicSys::AddEffect(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int nX, int nY, bool bFail)
 {
+    return AddEffectWithAction(pCaster, pTarget, nMagic, nX, nY, bFail, 0);
+}
+
+bool CMagicSys::AddEffectWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int nX, int nY, bool bFail, uint64_t action)
+{
 	const bool bPattern = false;
 	
 	switch (nMagic)
@@ -727,11 +739,11 @@ bool CMagicSys::AddEffect(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, 
 		{
 			if (pCaster != pTarget)
 			{	// 대상자에게 마법 시행
-				::InsertMagic(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail);
+				::InsertMagicWithActionAndType(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail, 0, action, nMagic);
 			}
 			else
 			{ // 시전자에게 마법 시행				
-				::InsertMagic(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail);
+				::InsertMagicWithActionAndType(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail, 0, action, nMagic);
 			}
 			
 			break;
@@ -780,11 +792,11 @@ bool CMagicSys::AddEffect(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, 
 		{
 			if (pCaster != pTarget)
 			{	// 대상자에게 마법 시행
-				::InsertMagic(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail);
+				::InsertMagicWithActionAndType(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail, 0, action, nMagic);
 			}
 			else
 			{ // 시전자에게 마법 시행				
-				::InsertMagic(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail);
+				::InsertMagicWithActionAndType(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail, 0, action, nMagic);
 			}
 			
 			break;

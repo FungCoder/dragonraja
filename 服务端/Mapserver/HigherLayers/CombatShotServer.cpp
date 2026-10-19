@@ -16,6 +16,8 @@ static_assert(FIRE_EXTREME == DragonCombatShot::FireExtremeSkill, "Fire-extreme 
 static_assert(ICE_EXTREME == DragonCombatShot::IceExtremeSkill, "Ice-extreme canonical ID");
 static_assert(FIRE_ARROW == DragonCombatShot::FireArrowMagic &&
     ICE_ARROW == DragonCombatShot::IceArrowMagic, "Magic-arrow canonical IDs");
+static_assert(FIRE_BALL == DragonCombatShot::FireBallMagic &&
+    ICE_BALL == DragonCombatShot::IceBallMagic, "Single-cast canonical IDs");
 
 namespace
 {
@@ -24,6 +26,8 @@ using DragonGameplay::PreparationIdentity;
 using DragonGameplay::IsPlayerSession;
 using DragonGameplay::GetPlayerSessionIdentity;
 std::map<int, CombatShotLedger> ledgers;
+struct MagicExecutionTime { PreparationIdentity owner; uint64_t accepted_ms; };
+std::map<int, MagicExecutionTime> magicExecutions;
 std::map<int, DWORD> notices, helloTimes;
 uint64_t nextAction = 0;
 std::mutex ledgerMutex;
@@ -61,6 +65,7 @@ void ResetCombatShotSession(int connection)
 {
     const std::lock_guard<std::mutex> lock(ledgerMutex);
     ledgers.erase(connection);
+    magicExecutions.erase(connection);
     notices.erase(connection);
     helloTimes.erase(connection);
 }
@@ -162,7 +167,8 @@ void SettleCombatShot(int connection, const PreparationIdentity& owner,
     CHARLIST* target = GetCharListPtr(hitTarget);
     if (actor.IsDead() || actor.bAlive != ALIVE_ || !target || target == &actor ||
         target->IsDead() || target->bAlive != ALIVE_) return;
-    if (action.attack_kind == WR_LONG1 && !actor.IsArrow()) return;
+    if ((!action.magic || DragonCombatShot::IsMagicArrow(action.magic)) &&
+        action.attack_kind == WR_LONG1 && !actor.IsArrow()) return;
     if (hitX < 0 || hitY < 0 || hitX / TILE_SIZE >= g_lpMapFile->wWidth ||
         hitY / TILE_SIZE >= g_lpMapFile->wHeight) return;
     // Ordinary shots can intercept another entity. Bound candidates to the
@@ -175,7 +181,7 @@ void SettleCombatShot(int connection, const PreparationIdentity& owner,
         t_client_magic_result result = {};
         result.nMagic = BYTE(action.magic); result.idTarget = hitTarget;
         result.nX = hitX; result.nY = hitY; result.bWanted = wanted;
-        g_pBattleManager->RecvAuthorizedMagicArrowResult(connection, &result);
+        g_pBattleManager->RecvAuthorizedMagicResult(connection, &result);
         return;
     }
     t_client_throw_result result = {};
@@ -204,4 +210,43 @@ void RecvCombatShotHit(int connection, const void* data, int size)
             hit.action, GetTickCount64(), action)) return;
     }
     SettleCombatShot(connection, owner, action, hit.target, hit.x, hit.y, hit.wanted != 0);
+}
+
+bool IssueProjectileMagic(int connection, const void* data, int size)
+{
+    using namespace DragonCombatShot;
+    if (!IsPlayerSession(connection) || !data || size != sizeof(t_client_magic_execute)) return false;
+    t_client_magic_execute request = {};
+    memcpy(&request, data, sizeof(request));
+    if (!IsSingleCastMagic(request.nMagic)) return false;
+    const PreparationIdentity owner = GetPlayerSessionIdentity(connection);
+    DragonGameplay::ShotAction action = MakeShotAction(connections[connection].chrlst, 1);
+    action.magic = request.nMagic;
+    uint32_t nonce = 0;
+    {
+        const std::lock_guard<std::mutex> lock(ledgerMutex);
+        const auto found = ledgers.find(connection);
+        if (found != ledgers.end()) nonce = found->second.Nonce(owner);
+        if (nonce)
+        {
+            if (nextAction == UINT64_MAX || !found->second.HasCapacity(owner, GetTickCount64())) return false;
+            const uint64_t now = GetTickCount64();
+            const auto previous = magicExecutions.find(connection);
+            const uint64_t interval = uint64_t(MagicRepeatIntervalMs) *
+                ((connections[connection].chrlst.GetState() & CON_FROZEN) ? 2 : 1);
+            if (previous != magicExecutions.end() && previous->second.owner == owner &&
+                (now < previous->second.accepted_ms || now - previous->second.accepted_ms < interval)) return false;
+            if (!g_pBattleManager->PrepareProjectileMagicExecute(connection, &request)) return false;
+            action.id = ++nextAction;
+            if (!found->second.Issue(owner, action, GetTickCount64())) return false;
+            magicExecutions[connection] = {owner, now};
+        }
+    }
+    if (!nonce) { UpgradeMessage(connection); return false; }
+    const ArrowIssued issued = {{Version, nonce, action.id, uint16_t(connection),
+        request.idTarget, request.nX, request.nY, LifetimeMs}, request.nMagic};
+    t_packet packet = {};
+    DragonCombatShot::WritePacket(packet, MagicIssuedCommand, issued);
+    QueuePacket(connections, connection, &packet, 1);
+    return true;
 }

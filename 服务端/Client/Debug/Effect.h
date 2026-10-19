@@ -636,6 +636,7 @@ extern bool RbuttonContinue( int magic_Num, LPCHARACTER scr=Hero, LPCHARACTER dc
 // 마법 리스트에 효과 마법 등록 (인자:이펙트의 고유번호/중점좌표 X,Y/시전자 이미지 변화시키는 마법에서 사용->(1~6 사이의 숫자로 6자리까지) 
 extern void InsertMagic(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool firePattern=0, int next_Effect=0, bool failed=0, DWORD dwDuration = 0);
 extern void InsertMagicWithAction(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction);
+extern void InsertMagicWithActionAndType(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotAction, int magicType);
 extern void InsertMagicWithBatch(LPCHARACTER lpChar_Own, LPCHARACTER lpChar_Target, int magicNum, int magicSubNum, int s_X, int s_Y, int t_X, int t_Y, bool firePattern, int next_Effect, bool failed, DWORD dwDuration, uint64_t shotBatch);
 // 이펙트 리스트에 마법 리스트 등록 (인자:이펙트의 고유번호/모션 카운트(생성/중간/종말)/스피드/방향/Trans방법/투명도/마지막 프레임           
 extern void InsertEffect(MAGICLIST *Temp, int start_Frame=0, int nOffX = 0, int nOffY = 0);

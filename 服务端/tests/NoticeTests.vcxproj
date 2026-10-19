@@ -12,6 +12,9 @@
     <ClCompile><PrecompiledHeader>NotUsing</PrecompiledHeader><WarningLevel>Level3</WarningLevel><RuntimeLibrary>MultiThreaded</RuntimeLibrary></ClCompile>
     <Link><AdditionalDependencies>odbc32.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
   </ItemDefinitionGroup>
-  <ItemGroup><ClCompile Include="$(NoticeTestName).cpp" /></ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(NoticeTestName).cpp" />
+    <ClCompile Include="..\Mapserver\HigherLayers\WarStartInfo.cpp" Condition="'$(NoticeTestName)'=='WarScheduleTest'" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

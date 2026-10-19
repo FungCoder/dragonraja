@@ -53,6 +53,10 @@ $arrowEnd = $managerSource.IndexOf('void CBattleManager::RecvMagicResult(t_magic
 if ($arrowStart -lt 0 -or $arrowEnd -le $arrowStart) { throw 'Missing magic-arrow authority handlers' }
 [IO.File]::WriteAllBytes((Join-Path $output 'MagicArrowAuthorityProduction.inc'),
     $legacyEncoding.GetBytes($managerSource.Substring($arrowStart, $arrowEnd - $arrowStart)))
+$executeStart = $managerSource.IndexOf('void CBattleManager::RecvMagicExecute(', [StringComparison]::Ordinal)
+if ($executeStart -lt 0 -or $executeStart -ge $arrowStart) { throw 'Missing magic execution authority' }
+[IO.File]::WriteAllBytes((Join-Path $output 'MagicExecuteAuthorityProduction.inc'),
+    $legacyEncoding.GetBytes($managerSource.Substring($executeStart, $arrowStart - $executeStart)))
 $strikeSource = $legacyEncoding.GetString([IO.File]::ReadAllBytes(
     (Join-Path $root '服务端/Client/Debug/StrikeSys.cpp')))
 $strikeNamespace = [regex]::Match($strikeSource, '(?m)^namespace\s*\{')
@@ -65,6 +69,24 @@ $shootEnd = $strikeSource.IndexOf('void CStrikeSys::Throw(', $shootStart, [Strin
 if ($shootStart -lt 0 -or $shootEnd -le $shootStart) { throw 'Missing production Shoot method' }
 [IO.File]::WriteAllBytes((Join-Path $output 'CombatShotShootProduction.inc'),
     $legacyEncoding.GetBytes($strikeSource.Substring($shootStart, $shootEnd - $shootStart)))
+$magicSource = $legacyEncoding.GetString([IO.File]::ReadAllBytes(
+    (Join-Path $root '服务端/Client/Debug/MagicSys.cpp')))
+$factoryStart = $magicSource.IndexOf('bool CMagicSys::AddEffectWithAction(', [StringComparison]::Ordinal)
+if ($factoryStart -lt 0) { throw 'Missing versioned magic factory' }
+$rootCases = ''
+foreach ($markers in @(@('case FIRE_BALL:', 'case SCORCHER:'), @('case ICE_BALL:', 'case FREEZE_5TILE_RADIUS:'))) {
+    $caseStart = $magicSource.IndexOf($markers[0], $factoryStart, [StringComparison]::Ordinal)
+    $caseEnd = $magicSource.IndexOf($markers[1], $caseStart, [StringComparison]::Ordinal)
+    if ($caseStart -lt 0 -or $caseEnd -le $caseStart) { throw 'Missing single-cast factory case' }
+    $rootCases += $magicSource.Substring($caseStart, $caseEnd - $caseStart)
+}
+[IO.File]::WriteAllBytes((Join-Path $output 'SingleCastRootCasesProduction.inc'), $legacyEncoding.GetBytes($rootCases))
+$effectMethod = $magicSource.IndexOf('void CMagicSys::Effect(MAGICLIST*', [StringComparison]::Ordinal)
+$linkStart = $magicSource.IndexOf('::InsertMagicWithActionAndType(pCaster, pTarget,', $effectMethod, [StringComparison]::Ordinal)
+$linkEnd = $magicSource.IndexOf(';', $linkStart, [StringComparison]::Ordinal)
+if ($linkStart -lt 0 -or $linkEnd -le $linkStart) { throw 'Missing magic child propagation' }
+[IO.File]::WriteAllBytes((Join-Path $output 'SingleCastLinkProduction.inc'),
+    $legacyEncoding.GetBytes($magicSource.Substring($linkStart, $linkEnd - $linkStart + 1)))
 $vcvars = 'C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvars64.bat'
 if (!(Test-Path -LiteralPath $vcvars)) { throw 'C++ build tools not found' }
 $commands = @('@echo off', 'chcp 65001 >nul', "call `"$vcvars`" >nul", 'if errorlevel 1 exit /b 1')

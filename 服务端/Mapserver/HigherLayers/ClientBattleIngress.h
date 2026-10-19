@@ -21,6 +21,7 @@ inline int ExpectedPayloadSize(unsigned command)
     case DragonCombatShot::AckCommand:
     case DragonCombatShot::IssuedCommand:
     case DragonCombatShot::ArrowIssuedCommand:
+    case DragonCombatShot::MagicIssuedCommand:
     case DragonCombatShot::BurstIssuedCommand: return ServerOnly;
     case CMD_ATTACK: return sizeof(t_player_attack);
     case CMD_THROW_ATTACK: return sizeof(t_client_throw_attack);

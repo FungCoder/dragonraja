@@ -41,7 +41,7 @@ public:
 	void RecvThrowResult(WORD idCaster, t_client_throw_result* pPacket);
 	void RecvAuthorizedThrowResult(WORD idCaster, t_client_throw_result* pPacket, int attackKind);
     bool PrepareMagicArrowShot(WORD idCaster, WORD idTarget, int x, int y, unsigned short& magic);
-    void RecvAuthorizedMagicArrowResult(WORD idCaster, t_client_magic_result* pPacket);
+    void RecvAuthorizedMagicResult(WORD idCaster, t_client_magic_result* pPacket);
 
 	void RecvEffectResult(WORD idCaster, t_client_effect_result* pPacket); // CSD-031007
 	
@@ -52,7 +52,8 @@ public:
 	
 	void RecvMagicSelect(WORD idCaster, t_client_magic_select* pPacket); // CSD-TW-030606
 	void RecvMagicCasting(WORD idCaster, t_client_magic_casting* pPacket); // CSD-TW-030606
-	void RecvMagicExecute(WORD idCaster, t_client_magic_execute* pPacket); // CSD-TW-030606
+	void RecvMagicExecute(WORD idCaster, t_client_magic_execute* pPacket);
+    bool PrepareProjectileMagicExecute(WORD idCaster, t_client_magic_execute* pPacket); // CSD-TW-030606
 	void RecvMagicResult(WORD idCaster, t_client_magic_result* pPacket);
 	void RecvMagicResult(t_magic_result_d* pPacket);
 	
@@ -78,6 +79,7 @@ protected:
 	bool FilterCombat(BYTE nCombat, CHARLIST* pCaster, CHARLIST* pTarget);
 	bool FilterResult(CHARLIST* pCaster, CHARLIST* pTarget);
     bool FilterPlayerMagicResult(BYTE magic, CHARLIST* pCaster, CHARLIST* pTarget);
+    bool RecvMagicExecuteImpl(WORD idCaster, t_client_magic_execute* pPacket, bool sendOwner);
     void RecvMagicResultImpl(WORD idCaster, t_client_magic_result* pPacket, bool authorizedArrow);
 	bool FilterResult(BYTE nMagic, CHARLIST* pCaster, CHARLIST* pTarget);
 	

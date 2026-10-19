@@ -117,7 +117,8 @@ public:
 	void RecvNpcMagic(t_server_npc_magic* pPacket);
 	void RecvMagicSelect(t_server_magic_select* pPacket); // CSD-TW-030606
 	void RecvMagicCasting(t_server_magic_casting* pPacket); // CSD-TW-030606
-	void RecvMagicExecute(t_server_magic_execute* pPacket); // CSD-TW-030606
+	void RecvMagicExecute(t_server_magic_execute* pPacket);
+    void RecvMagicExecuteWithAction(t_server_magic_execute* pPacket, uint64_t action); // CSD-TW-030606
 	void RecvMagicResult(t_server_magic_result* pPacket); // CSD-TW-030606
 	void RecvMagicResultT(t_server_magic_result_t* pPacket); // CSD-TW-030606
 	void RecvMagicResultH(t_server_magic_result_h* pPacket); // CSD-TW-030606
