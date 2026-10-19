@@ -14,7 +14,8 @@ enum { THROW_ARROW = 194, THROW_KNIFE = 195, THROW_FIRE_ARROW = 665,
     THROW_ICE_KNIFE = 666, THROW_SNOW_BALL = 193, THROW_WATER_BALL = 661,
     THROW_BIG_GULP = 663, MK_WARNING = 1, FIRE_ARROW = 29, ICE_ARROW = 38,
     SPRITETYPE_ITEM = 50, TILE_SIZE = 32, FIRE_BALL = 30, ICE_BALL = 39,
-    FLYING_SPARK = 89, BLITZ_SPEAR = 100 };
+    FLYING_SPARK = 89, BLITZ_SPEAR = 100,
+    DEATH_FIRE = 87, SHADOW_OF_EVIL = 98, FLAME_ARROW = 110 };
 static struct CharacterFixture
 {
     unsigned id = 1;
@@ -86,6 +87,19 @@ static void CreateSingleCastRoot(t_server_magic_execute* packet, uint64_t action
     default: std::abort();
     }
 }
+static unsigned MagicProjectileEffect(unsigned magic)
+{
+    using namespace DragonCombatShot;
+    switch (magic)
+    {
+    case FlyingSparkMagic: return 460;
+    case BlitzSpearMagic: return 463;
+    case DeathFireMagic: return 454;
+    case ShadowOfEvilMagic: return 468;
+    case FlameArrowMagic: return 608;
+    default: std::abort();
+    }
+}
 static void LinkSingleCastRoot(MAGICLIST* pEffect)
 {
     LPCHARACTER pCaster = pEffect->lpChar_Own, pTarget = pEffect->lpChar_Target;
@@ -114,6 +128,9 @@ int main()
     CombatShotReceive(AckCommand, &ack, sizeof(ack));
     Require(!CombatShotReady(), "stale acknowledgement");
     ack.nonce = hello.nonce;
+    auto previousProtocol = ack; previousProtocol.version = 6;
+    CombatShotReceive(AckCommand, &previousProtocol, sizeof(previousProtocol));
+    Require(!CombatShotReady(), "published protocol-six client/server pair cannot negotiate protocol seven");
     CombatShotReceive(AckCommand, &ack, sizeof(ack) - 1);
     Require(!CombatShotReady(), "short acknowledgement");
     CombatShotReceive(AckCommand, &ack, sizeof(ack));
@@ -346,7 +363,8 @@ int main()
         Require(hit.action == nextAction && sent.back().h.header.type == HitCommand,
             "spell projectile uses shared result format");
     }
-    for (unsigned magic : {unsigned(FlyingSparkMagic), unsigned(BlitzSpearMagic)})
+    for (unsigned magic : {unsigned(FlyingSparkMagic), unsigned(BlitzSpearMagic),
+        unsigned(DeathFireMagic), unsigned(ShadowOfEvilMagic), unsigned(FlameArrowMagic)})
     for (unsigned target : {1u, 2u})
     {
         nextAction += 1000;
@@ -373,7 +391,7 @@ int main()
         CombatShotReceive(BurstIssuedCommand, &cast, sizeof(cast));
         Require(magicAnimations == beforeCast && animations == beforeThrow,
             "malformed magic batches and cross-family envelopes never animate");
-        g_lpET[magic].next_Effect = magic == FlyingSparkMagic ? 460 : 463;
+        g_lpET[magic].next_Effect = MagicProjectileEffect(magic);
         generated.clear();
         CombatShotReceive(MagicBurstIssuedCommand, &cast, sizeof(cast));
         CombatShotReceive(MagicBurstIssuedCommand, &cast, sizeof(cast));
@@ -381,7 +399,7 @@ int main()
             "magic batch uses actual spell factory once, never weapon throw animation");
         MAGICLIST root = generated[0];
         Require(root.shot_batch == nextAction && root.shot_action == 0 &&
-            root.magicSerial == magic && root.magicSubNum == (target == 1 ? 1 : 0),
+            root.magicSerial == magic && root.magicSubNum == (magic == FlameArrowMagic || target == 1 ? 1 : 0),
             "magic batch root retains type, target mode and explicit batch ID");
         Require(!CombatShotTakeBurst(1, target, magic), "magic batch bypasses pending animation binding");
         Hero->excute_MagicNum = 999;
@@ -389,16 +407,23 @@ int main()
         MagicBurstDispatch generator;
         generator.Dispatch(&root);
         Require(generated.size() == cast.count, "real generator creates exact authorized projectile count");
+        unsigned directionMask = 0;
         for (unsigned part = 0; part < cast.count; ++part)
         {
             const auto& child = generated[part];
+            if (magic == ShadowOfEvilMagic)
+            {
+                Require(child.dir >= 0 && child.dir < 8, "shadow direction is one of eight canonical directions");
+                directionMask |= 1u << child.dir;
+            }
             Require(child.shot_action == nextAction + part && child.magicSerial == magic &&
-                child.magicNum == (magic == FlyingSparkMagic ? 460 : 463),
+                child.magicNum == MagicProjectileEffect(magic),
                 "each child retains unique ID and immutable type after selection change");
             CombatShotSendHit(child.shot_action, 2, 120, 140, false);
             memcpy(&hit, sent.back().u.data, sizeof(hit));
             Require(hit.action == nextAction + part, "each spell projectile reports its own hit ID");
         }
+        Require(magic != ShadowOfEvilMagic || directionMask == 255, "shadow spread retains all eight distinct directions");
         generator.Dispatch(&root);
         Require(generated.size() == cast.count, "repeated root dispatch cannot spawn more authorized children");
         nextAction += 100;

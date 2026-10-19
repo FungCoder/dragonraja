@@ -958,11 +958,11 @@ bool CMagicSys::AddEffectWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, in
 		{
 			if (pCaster != pTarget)
 			{	// 대상자에게 마법 시행
-				::InsertMagic(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail);
+				::InsertMagicWithBatch(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail, 0, action);
 			}
 			else	
 			{ // 시전자에게 마법 시행				
-				::InsertMagic(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail);
+				::InsertMagicWithBatch(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail, 0, action);
 			}
 			
 			break;
@@ -1048,11 +1048,11 @@ bool CMagicSys::AddEffectWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, in
 		{ 
 			if (pCaster != pTarget)
 			{	// 대상자에게 마법 시행
-				::InsertMagic(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail);
+				::InsertMagicWithBatch(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail, 0, action);
 			}
 			else	
 			{ // 시전자에게 마법 시행				
-				::InsertMagic(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail);
+				::InsertMagicWithBatch(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail, 0, action);
 			}
 			
 			break;
@@ -1107,7 +1107,7 @@ bool CMagicSys::AddEffectWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, in
 		}
 	case FLAME_ARROW:
 		{	//< CSD-031020
-			::InsertMagic(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail);
+			::InsertMagicWithBatch(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail, 0, action);
 			break;
 		}	//> CSD-031020
     case AREA_BAT_ATTACK:

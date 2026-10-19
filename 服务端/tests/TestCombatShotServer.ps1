@@ -74,7 +74,7 @@ $magicSource = $legacyEncoding.GetString([IO.File]::ReadAllBytes(
 $factoryStart = $magicSource.IndexOf('bool CMagicSys::AddEffectWithAction(', [StringComparison]::Ordinal)
 if ($factoryStart -lt 0) { throw 'Missing versioned magic factory' }
 $rootCases = ''
-foreach ($markers in @(@('case FIRE_BALL:', 'case SCORCHER:'), @('case ICE_BALL:', 'case FREEZE_5TILE_RADIUS:'), @('case FLYING_SPARK:', 'case VAMPIRE_POISON:'), @('case BLITZ_SPEAR:', 'case LIGHTNING_CLOUD:'))) {
+foreach ($markers in @(@('case FIRE_BALL:', 'case SCORCHER:'), @('case ICE_BALL:', 'case FREEZE_5TILE_RADIUS:'), @('case FLYING_SPARK:', 'case VAMPIRE_POISON:'), @('case BLITZ_SPEAR:', 'case LIGHTNING_CLOUD:'), @('case DEATH_FIRE:', 'case SUMMONING_SKELETON:'), @('case SHADOW_OF_EVIL:', 'case FREEZING:'), @('case FLAME_ARROW:', 'case AREA_BAT_ATTACK:'))) {
     $caseStart = $magicSource.IndexOf($markers[0], $factoryStart, [StringComparison]::Ordinal)
     $caseEnd = $magicSource.IndexOf($markers[1], $caseStart, [StringComparison]::Ordinal)
     if ($caseStart -lt 0 -or $caseEnd -le $caseStart) { throw 'Missing single-cast factory case' }
@@ -83,7 +83,7 @@ foreach ($markers in @(@('case FIRE_BALL:', 'case SCORCHER:'), @('case ICE_BALL:
 [IO.File]::WriteAllBytes((Join-Path $output 'SingleCastRootCasesProduction.inc'), $legacyEncoding.GetBytes($rootCases))
 $effectMethod = $magicSource.IndexOf('void CMagicSys::Effect(MAGICLIST*', [StringComparison]::Ordinal)
 $dispatchCases = ''
-foreach ($markers in @(@('case FLYING_SPARK:', 'case FIRE_EXPLOSION:'), @('case BLITZ_SPEAR:', 'case LIGHTNING_CLOUD:'))) {
+foreach ($markers in @(@('case FLYING_SPARK:', 'case FIRE_EXPLOSION:'), @('case BLITZ_SPEAR:', 'case LIGHTNING_CLOUD:'), @('case DEATH_FIRE:', 'case AUTHORITY_OF_WHOARENCHA:'), @('case SHADOW_OF_EVIL:', 'case BLITZ_SPEAR:'), @('case FLAME_ARROW:', 'default:'))) {
     $caseStart = $magicSource.IndexOf($markers[0], $effectMethod, [StringComparison]::Ordinal)
     $caseEnd = $magicSource.IndexOf($markers[1], $caseStart, [StringComparison]::Ordinal)
     if ($caseStart -lt 0 -or $caseEnd -le $caseStart) { throw 'Missing multi-projectile spell dispatch' }

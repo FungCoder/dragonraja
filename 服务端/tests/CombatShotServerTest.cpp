@@ -20,7 +20,8 @@ enum { DRAGON_CONNECTIONS_START = 1, DRAGON_MAX_CONNECTIONS = 8,
     CMD_SCRIPT_MESSAGE_BOX = 10273, TILE_SIZE = 32,
     REM_AREA_X = 21 * 32, REM_AREA_Y = 17 * 32, ALIVE_ = 1,
     Num_Of_Magic = 256, REMOVE_CURSE = 78, MP = 1, MK_WARNING = 2, MK_NORMAL = 3,
-    FIRE_BALL = 30, ICE_BALL = 39, CON_FROZEN = 2, FLYING_SPARK = 89, BLITZ_SPEAR = 100 };
+    FIRE_BALL = 30, ICE_BALL = 39, CON_FROZEN = 2, FLYING_SPARK = 89, BLITZ_SPEAR = 100,
+    DEATH_FIRE = 87, SHADOW_OF_EVIL = 98, FLAME_ARROW = 110 };
 static int MapNumber = 5;
 static uint64_t nowMs = 100;
 static DWORD g_curr_time = 10;
@@ -208,6 +209,9 @@ int main()
     }
     Require(!IssueCombatShot(1, 2, 100, 100), "no silent legacy fallback before handshake");
     const Hello hello = {Version, 99};
+    const Hello previousProtocol = {6, 99};
+    RecvCombatShotHello(1, &previousProtocol, sizeof(previousProtocol));
+    Require(!IssueCombatShot(1, 2, 100, 100), "published protocol-six handshake cannot authorize protocol-seven releases");
     RecvCombatShotHello(1, &hello, sizeof(hello));
     Require(sent.back().h.header.type == AckCommand, "capability reply");
     auto issued = Issue();
@@ -477,7 +481,8 @@ int main()
             "unnegotiated spell does not charge mana");
         nowMs += 201; RecvCombatShotHello(1, &hello, sizeof(hello));
     }
-    for (unsigned magic : {unsigned(FlyingSparkMagic), unsigned(BlitzSpearMagic)})
+    for (unsigned magic : {unsigned(FlyingSparkMagic), unsigned(BlitzSpearMagic),
+        unsigned(DeathFireMagic), unsigned(ShadowOfEvilMagic), unsigned(FlameArrowMagic)})
     {
         ResetCombatShotSession(1); nowMs += 201;
         RecvCombatShotHello(1, &hello, sizeof(hello));

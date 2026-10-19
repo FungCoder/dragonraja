@@ -21,6 +21,9 @@ static_assert(FIRE_ARROW == DragonCombatShot::FireArrowMagic &&
     ICE_ARROW == DragonCombatShot::IceArrowMagic, "Magic-arrow canonical IDs");
 static_assert(FLYING_SPARK == DragonCombatShot::FlyingSparkMagic &&
     BLITZ_SPEAR == DragonCombatShot::BlitzSpearMagic, "Multi-projectile canonical IDs");
+static_assert(DEATH_FIRE == DragonCombatShot::DeathFireMagic &&
+    SHADOW_OF_EVIL == DragonCombatShot::ShadowOfEvilMagic &&
+    FLAME_ARROW == DragonCombatShot::FlameArrowMagic, "Fan-out canonical IDs");
 
 namespace
 {
