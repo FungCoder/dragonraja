@@ -23,6 +23,8 @@ static_assert(FLYING_SPARK == DragonCombatShot::FlyingSparkMagic &&
 static_assert(DEATH_FIRE == DragonCombatShot::DeathFireMagic &&
     SHADOW_OF_EVIL == DragonCombatShot::ShadowOfEvilMagic &&
     FLAME_ARROW == DragonCombatShot::FlameArrowMagic, "Fan-out canonical IDs");
+static_assert(FIRE_WALL == DragonGameplay::FireWallMagic &&
+    ICE_WALL == DragonGameplay::IceWallMagic, "Wall canonical IDs");
 
 namespace
 {
@@ -31,6 +33,7 @@ using DragonGameplay::PreparationIdentity;
 using DragonGameplay::IsPlayerSession;
 using DragonGameplay::GetPlayerSessionIdentity;
 std::map<int, CombatShotLedger> ledgers;
+std::map<int, DragonGameplay::WallExecutionGate> paidWallExecutions;
 struct MagicExecutionTime { PreparationIdentity owner; uint64_t accepted_ms; };
 std::map<int, MagicExecutionTime> magicExecutions;
 std::map<int, DWORD> notices, helloTimes;
@@ -70,6 +73,7 @@ void ResetCombatShotSession(int connection)
 {
     const std::lock_guard<std::mutex> lock(ledgerMutex);
     ledgers.erase(connection);
+    paidWallExecutions.erase(connection);
     magicExecutions.erase(connection);
     notices.erase(connection);
     helloTimes.erase(connection);
@@ -80,6 +84,29 @@ void CancelCombatShots(int connection)
     const std::lock_guard<std::mutex> lock(ledgerMutex);
     const auto found = ledgers.find(connection);
     if (found != ledgers.end()) found->second.ClearActions();
+    paidWallExecutions.erase(connection);
+}
+
+bool RecordPaidWallMagicExecution(int connection, unsigned magic, int durationSeconds)
+{
+    if (!IsPlayerSession(connection) || !DragonGameplay::IsWallMagic(magic) || durationSeconds < 0)
+        return false;
+    const CHARLIST& actor = connections[connection].chrlst;
+    if (actor.IsDead() || actor.bAlive != ALIVE_) return false;
+    const PreparationIdentity owner = GetPlayerSessionIdentity(connection);
+    const std::lock_guard<std::mutex> lock(ledgerMutex);
+    return paidWallExecutions[connection].Record(owner, magic, GetTickCount64(), durationSeconds);
+}
+
+bool CanReportPaidWallMagic(int connection, unsigned magic)
+{
+    if (!IsPlayerSession(connection) || !DragonGameplay::IsWallMagic(magic)) return false;
+    const CHARLIST& actor = connections[connection].chrlst;
+    if (actor.IsDead() || actor.bAlive != ALIVE_) return false;
+    const PreparationIdentity owner = GetPlayerSessionIdentity(connection);
+    const std::lock_guard<std::mutex> lock(ledgerMutex);
+    const auto found = paidWallExecutions.find(connection);
+    return found != paidWallExecutions.end() && found->second.CanReport(owner, magic, GetTickCount64());
 }
 
 void RecvCombatShotHello(int connection, const void* data, int size)

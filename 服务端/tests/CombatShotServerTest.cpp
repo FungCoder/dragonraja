@@ -25,7 +25,7 @@ enum { DRAGON_CONNECTIONS_START = 1, DRAGON_MAX_CONNECTIONS = 8,
 static int MapNumber = 5;
 static uint64_t nowMs = 100;
 static DWORD g_curr_time = 10;
-static struct { int exhaust_MP = 10, magic_Type = 51, Excute_Type = 0; } Magic_Ref[Num_Of_Magic];
+static struct { int exhaust_MP = 10, magic_Type = 51, Excute_Type = 0, continue_Time = 30; } Magic_Ref[Num_Of_Magic];
 static DWORD timeGetTime() { return DWORD(nowMs); }
 static ULONGLONG TestTickCount64() { return nowMs; }
 #define GetTickCount64 TestTickCount64
@@ -40,7 +40,7 @@ struct CHARLIST
     bool hasArrow = true;
     int Mana = 1000, manaUpdates = 0;
     bool stone = false, prepared = true, doing = true, learned = true, enabled = true;
-    bool filterAllowed = true, battleAllowed = true;
+    bool filterAllowed = true, battleAllowed = true, endAllowed = true;
     int preparedMagic = FIRE_ARROW;
     bool locked = true;
     BYTE state = 0;
@@ -56,7 +56,7 @@ struct CHARLIST
     unsigned GetCombatLevel(unsigned) const { return level; }
     bool IsStone() const { return stone; }
     bool CheckDoing(BYTE skill, DWORD) const { return doing && (Magic_Ref[skill].Excute_Type == 0 || locked); }
-    bool CheckEnd(BYTE selected, DWORD) { magic = selected; return true; }
+    bool CheckEnd(BYTE selected, DWORD) { if (!endAllowed) return false; magic = selected; return true; }
     void ClearMagic() { magic = 0; }
     void ClearMagic(bool lock) { locked = lock; }
     void SendCharInfoBasic(int, int) { ++manaUpdates; }
@@ -568,5 +568,92 @@ int main()
     nowMs += MagicRepeatIntervalMs;
     Require(IssueProjectileMagic(1, &timed, sizeof(timed)) && caster.Mana == 70,
         "frozen execution interval boundary is legal");
+    {
+        DragonGameplay::WallExecutionGate gate;
+        const DragonGameplay::PreparationIdentity owner = {1,2,3,4};
+        auto other = owner; ++other.character;
+        Require(!gate.CanReport(owner, DragonGameplay::FireWallMagic, 0), "selection is not a paid wall execute");
+        Require(gate.Record(owner, DragonGameplay::FireWallMagic, 500, 0), "zero-second legacy wall keeps its deadline second");
+        Require(!gate.CanReport(owner, DragonGameplay::FireWallMagic, 499) &&
+            gate.CanReport(owner, DragonGameplay::FireWallMagic, 1499) &&
+            !gate.CanReport(owner, DragonGameplay::FireWallMagic, 1500), "monotonic wall proof and whole-second boundary");
+        Require(gate.Record(owner, DragonGameplay::FireWallMagic, UINT64_C(1)<<32, 30), "wall proof beyond old clock wrap");
+        Require(gate.Record(owner, DragonGameplay::IceWallMagic, (UINT64_C(1)<<32) + 1, 60), "independent ice wall payment");
+        Require(!gate.Record(owner, DragonGameplay::FireWallMagic, 0, -1) &&
+            !gate.Record(owner, FireBallMagic, 0, 30), "negative configuration and unrelated spells cannot create proof");
+        Require(gate.CanReport(owner, DragonGameplay::FireWallMagic, (UINT64_C(1)<<32) + 1000) &&
+            gate.CanReport(owner, DragonGameplay::IceWallMagic, (UINT64_C(1)<<32) + 1000) &&
+            !gate.CanReport(other, DragonGameplay::FireWallMagic, (UINT64_C(1)<<32) + 1000), "paid walls retain separate identity-scoped windows");
+        Require(!gate.CanReport(owner, DragonGameplay::FireWallMagic, UINT64_C(2)<<32), "clock wrap cannot revive old paid wall");
+    }
+    for (unsigned magic : {unsigned(DragonGameplay::FireWallMagic), unsigned(DragonGameplay::IceWallMagic)})
+    {
+        ResetCombatShotSession(1); caster.state = 0; caster.Hp = 100; caster.bAlive = ALIVE_;
+        caster.magic = caster.preparedMagic = magic;
+        caster.prepared = caster.doing = caster.locked = caster.learned = caster.filterAllowed = caster.battleAllowed = true;
+        caster.Mana = 100;
+        t_client_magic_execute execute = {};
+        execute.nMagic = BYTE(magic); execute.idTarget = 1; execute.nX = execute.nY = 100;
+        t_client_magic_result result = {};
+        result.nMagic = BYTE(magic); result.idTarget = 2; result.nX = result.nY = 100;
+        const unsigned beforeWall = magicSettlements;
+        battle.RecvMagicResult(1, &result);
+        Require(magicSettlements == beforeWall && !CanReportPaidWallMagic(1, magic), "prepared-only wall cannot damage before paid execute");
+        caster.filterAllowed = false;
+        battle.RecvMagicExecute(1, &execute);
+        caster.filterAllowed = true; caster.magic = magic; caster.prepared = true;
+        Require(!CanReportPaidWallMagic(1, magic) && caster.Mana == 100, "failed payment cannot authorize wall results");
+        battle.RecvMagicResult(1, &result);
+        Require(magicSettlements == beforeWall, "failed execute has no result fallback");
+        const unsigned payments = prepareCalls;
+        Magic_Ref[magic].continue_Time = -1;
+        battle.RecvMagicExecute(1, &execute);
+        Require(caster.Mana == 100 && prepareCalls == payments && !CanReportPaidWallMagic(1, magic), "invalid duration rejected before mana filter");
+        Magic_Ref[magic].continue_Time = 30;
+        caster.magic = magic; caster.prepared = true;
+        battle.RecvMagicExecute(1, &execute);
+        Require(CanReportPaidWallMagic(1, magic) && caster.Mana == 90 &&
+            sent.back().h.header.type == CMD_MAGIC_EXECUTE && !sent.back().u.magic.server_magic_execute.bFailed,
+            "successful original execute pays once and authorizes wall with original response");
+        Require(!CanReportPaidWallMagic(1, magic == DragonGameplay::FireWallMagic ? DragonGameplay::IceWallMagic : DragonGameplay::FireWallMagic),
+            "one wall payment does not authorize another wall type");
+        caster.endAllowed = false;
+        battle.RecvMagicResult(1, &result);
+        Require(magicSettlements == beforeWall && CanReportPaidWallMagic(1, magic),
+            "paid proof cannot bypass the original CheckEnd duration");
+        caster.endAllowed = true;
+        caster.magic = FireBallMagic;
+        battle.RecvMagicResult(1, &result);
+        battle.RecvMagicResult(1, &result);
+        Require(magicSettlements == beforeWall + 2 && settledMagic == magic && filteredMagic == magic && caster.Mana == 90,
+            "original wall can hit multiple times without extra mana or changed damage handler");
+        caster.magic = magic; caster.prepared = true; caster.Mana = 0;
+        battle.RecvMagicExecute(1, &execute);
+        caster.Mana = 90; caster.magic = magic; caster.prepared = true;
+        Require(CanReportPaidWallMagic(1, magic), "later failed execute cannot erase an already paid wall");
+        ++connections[1].dwIDForAgent;
+        battle.RecvMagicResult(1, &result);
+        Require(magicSettlements == beforeWall + 2, "reused connection cannot inherit paid wall");
+        --connections[1].dwIDForAgent;
+        ++MapNumber;
+        Require(!CanReportPaidWallMagic(1, magic), "wall proof is map-scoped");
+        --MapNumber;
+        nowMs += 31000;
+        RecvCombatShotHello(1, &renewed, sizeof(renewed));
+        battle.RecvMagicResult(1, &result);
+        Require(!CanReportPaidWallMagic(1, magic) && magicSettlements == beforeWall + 2,
+            "new handshake cannot renew expired paid wall");
+        battle.RecvMagicExecute(1, &execute);
+        Require(CanReportPaidWallMagic(1, magic) && caster.Mana == 80, "new paid execute creates new proof");
+        caster.Hp = 0;
+        Require(!CanReportPaidWallMagic(1, magic), "dead caster cannot report a wall");
+        CancelCombatShots(1); caster.Hp = 100;
+        Require(!CanReportPaidWallMagic(1, magic), "death cancellation prevents wall revival");
+        caster.magic = magic; caster.prepared = true;
+        battle.RecvMagicExecute(1, &execute);
+        Require(CanReportPaidWallMagic(1, magic), "paid wall before disconnect");
+        ResetCombatShotSession(1);
+        Require(!CanReportPaidWallMagic(1, magic), "disconnect/map reset clears paid wall proof");
+    }
     std::cout << "Production combat shot server tests passed\n";
 }

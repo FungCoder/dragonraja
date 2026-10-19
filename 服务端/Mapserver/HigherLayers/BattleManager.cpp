@@ -1005,6 +1005,12 @@ bool CBattleManager::RecvMagicExecuteImpl(WORD idCaster, t_client_magic_execute*
 		goto MAGIC_FAIL;
 	}
 	
+    if (DragonGameplay::IsWallMagic(nMagic) && Magic_Ref[nMagic].continue_Time < 0)
+    {
+        pCaster->ClearMagic();
+        bFail = true;
+        goto MAGIC_FAIL;
+    }
 	if (!FilterMagic(pCaster, pTarget, nX, nY))
 	{
 		pCaster->ClearMagic();
@@ -1012,6 +1018,13 @@ bool CBattleManager::RecvMagicExecuteImpl(WORD idCaster, t_client_magic_execute*
 		goto MAGIC_FAIL;
 	}
 	
+    if (DragonGameplay::IsWallMagic(nMagic) &&
+        !RecordPaidWallMagicExecution(idCaster, nMagic, Magic_Ref[nMagic].continue_Time))
+    {
+        pCaster->ClearMagic();
+        bFail = true;
+        goto MAGIC_FAIL;
+    }
     if (DragonCombatShot::IsProjectileCastMagic(nMagic)) pCaster->SendCharInfoBasic(MP, pCaster->Mana);
 	pCaster->ClearMagic(false); // 마법 사용이 되었음을 설정
 	// CSD-030806
@@ -1062,6 +1075,7 @@ bool CBattleManager::PrepareMagicArrowShot(WORD idCaster, WORD idTarget, int x, 
 void CBattleManager::RecvMagicResult(WORD idCaster, t_client_magic_result* pPacket)
 {
     if (!pPacket || DragonCombatShot::IsVersionedMagic(pPacket->nMagic)) return;
+    if (DragonGameplay::IsWallMagic(pPacket->nMagic) && !CanReportPaidWallMagic(idCaster, pPacket->nMagic)) return;
     RecvMagicResultImpl(idCaster, pPacket, false);
 }
 
