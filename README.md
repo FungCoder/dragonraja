@@ -1,6 +1,6 @@
 # Dragon Raja Windows / MySQL
 
-更新日期：2026-10-13。本仓库提供游戏客户端、服务端源码和MySQL数据库安装文件。
+更新日期：2026-10-19。本仓库提供游戏客户端、服务端源码和MySQL数据库安装文件。
 
 使用顺序：[完整操作流程](#从安装到进入游戏) → [数据库安装](database/README.md) → [源码编译](#源码编译说明) → [服务端配置启动](#服务端使用说明) → [客户端IP与登录](#客户端配置与进入游戏)。本仓库没有注册网站，也不包含完整游戏运行资源。
 
@@ -13,6 +13,14 @@
 [下载配套客户端（123云盘）](https://1855115188.share.123pan.cn/123pan/UmzWvd-ejB13?pwd=kohh)
 
 提取码：`kohh`。完整解压到英文路径后，双击`dragonraja.exe`启动游戏；连接其他服务器前，按[客户端配置](#客户端配置与进入游戏)修改`dragon.ini`中的IP和登录端口。
+
+## 客户端累积补丁
+
+[下载客户端补丁 2026.10.19-p6-preview1（Win32，约2MB）](https://github.com/FungCoder/dragonraja/releases/download/client-2026.10.19-p6-preview1/DragonRajaClientPatch-2026.10.19-p6-preview1-win32.zip) · [发行说明与校验文件](https://github.com/FungCoder/dragonraja/releases/tag/client-2026.10.19-p6-preview1)。
+
+先完整解压上方配套客户端，关闭游戏并将原`dragonraja.exe`另存备用，再把补丁中的`dragonraja.exe`覆盖到完整客户端根目录。保留自己的`dragon.ini`、`autoplay.ini`、DLL及游戏资源。补丁为累积更新，无需逐个安装历史版本；程序哈希和版本要求见包内`client-patch-manifest.json`。
+
+**本预览补丁使用战斗协议6，要求服务端采用源码提交`6125ed051b313bc711c8d3d46969ee854482bbb6`配套构建；下方v1.0.2服务端运行包不能直接配用。** 相关源码通过8种构建和23项离线回归，补丁程序单独构建并核对打包内容；尚未完成本补丁的游戏内验收。云盘完整包尚未重新下载核验，依赖指纹以现有本地配套客户端为依据。
 
 ## 服务端与数据库下载
 
