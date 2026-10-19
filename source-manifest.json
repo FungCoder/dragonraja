@@ -631,8 +631,8 @@
   },
   {
     "Path": "服务端/Client/Debug/BattleMgr.cpp",
-    "Bytes": 73026,
-    "SHA256": "453FD3091A60B087AFD20CC1A0B085EE54414965350DA483964058D1AACF7BDB"
+    "Bytes": 73030,
+    "SHA256": "48F20DA811662088EBA509D9C55FDF8D7F47B6DAA21B2C61ADD6BD5E87544037"
   },
   {
     "Path": "服务端/Client/Debug/BattleMgr.h",
@@ -686,8 +686,8 @@
   },
   {
     "Path": "服务端/Client/Debug/CombatShotClient.cpp",
-    "Bytes": 6973,
-    "SHA256": "395FA7AD235C925580AA5030E700B32354A950BBF2C109F878DB5A1BB70798EF"
+    "Bytes": 7684,
+    "SHA256": "18404FA4EA78348CC90DCBE3435F068B19F82BC9815533E49B1E1CC43144D384"
   },
   {
     "Path": "服务端/Client/Debug/CombatShotClient.h",
@@ -696,8 +696,8 @@
   },
   {
     "Path": "服务端/Client/Debug/CombatShotClientState.h",
-    "Bytes": 5545,
-    "SHA256": "84EB6D1E8D4572066B4FB41E2BD696648ADEC518090E75FD72C46FC3E1C11287"
+    "Bytes": 5676,
+    "SHA256": "01FD2DD2985A07F6B6E45A9489003BB4C28EC4C456404B0A71F316C42905DDE0"
   },
   {
     "Path": "服务端/Client/Debug/CombatSys.cpp",
@@ -1111,8 +1111,8 @@
   },
   {
     "Path": "服务端/Client/Debug/MagicSys.cpp",
-    "Bytes": 37237,
-    "SHA256": "DA42A6C6E4BE3A9F10FF406CC313C8672FD3F9C1F9EE0231F63B0D6484315FC5"
+    "Bytes": 37325,
+    "SHA256": "8D244F9D4F68691D597B88404C3BCB1BD74A972618CD08A89E4B2AAC25FCF933"
   },
   {
     "Path": "服务端/Client/Debug/MagicSys.h",
@@ -1291,8 +1291,8 @@
   },
   {
     "Path": "服务端/Client/Debug/network.cpp",
-    "Bytes": 118917,
-    "SHA256": "46EC7F005875484FAE0E0F7D50DCA29A32BA0DC769E0F2EB084BEAAEB27709AD"
+    "Bytes": 118973,
+    "SHA256": "F2436EDC9D33B8D9B4802CBB45242124C5D97721C9F3EE6897D1932D922F4897"
   },
   {
     "Path": "服务端/Client/Debug/network.h",
@@ -2286,8 +2286,8 @@
   },
   {
     "Path": "服务端/Library/Shared/CombatShotProtocol.h",
-    "Bytes": 3404,
-    "SHA256": "C8C33A46F3CBCA34D48D2D31349C3E52D2EC4967D2FB07596D5F61EDA0E00710"
+    "Bytes": 3740,
+    "SHA256": "869B33355AEB7FD10103DAD7D5200279DABB83FB798DD17C37D53E88A620B82F"
   },
   {
     "Path": "服务端/Library/Shared/DebugExt.cpp",
@@ -2576,8 +2576,8 @@
   },
   {
     "Path": "服务端/Mapserver/HigherLayers/BattleManager.cpp",
-    "Bytes": 76386,
-    "SHA256": "14FDCD939182EAF4EF93E51B5B1C8DAE159B4109FB2FB900ADE725CF38BE3B6E"
+    "Bytes": 76398,
+    "SHA256": "F44F60D8B08B5A832728F7E9C8F78503DD1CC7808E9FE24601B320FCDA547142"
   },
   {
     "Path": "服务端/Mapserver/HigherLayers/BattleManager.h",
@@ -2641,13 +2641,13 @@
   },
   {
     "Path": "服务端/Mapserver/HigherLayers/ClientBattleIngress.h",
-    "Bytes": 3275,
-    "SHA256": "35FE398B588E350596516581B73848F56F1998047EA652F7AF91C74588F4DA60"
+    "Bytes": 3327,
+    "SHA256": "DB821F602224EBF38F13E18C8E545FA41D90245BA59C3DDEB2B4B2CCC8DE3D5A"
   },
   {
     "Path": "服务端/Mapserver/HigherLayers/CombatShotServer.cpp",
-    "Bytes": 11545,
-    "SHA256": "7DA21DBE1A0E02CAEEBBC246D34B0C1595962379A96425BEEE37FF80070DB4B1"
+    "Bytes": 12386,
+    "SHA256": "F195BB02A2B6F4F30CF5A58D2497DE151E9409DCE8E0FA6B55A17DEFB552DC09"
   },
   {
     "Path": "服务端/Mapserver/HigherLayers/CombatShotServer.h",
@@ -3941,8 +3941,8 @@
   },
   {
     "Path": "服务端/tests/ClientBattleIngressTest.cpp",
-    "Bytes": 2956,
-    "SHA256": "903D47F81CAB7DB83C4F42099861E6BEDECD4648681B003B6E7ED514113D7024"
+    "Bytes": 2999,
+    "SHA256": "BC4F3D58599D993381FC90DE859A38C90FBFBEB0F1D4FDF23E2FCB4229779D47"
   },
   {
     "Path": "服务端/tests/CombatBurstGeneratorFixture.h",
@@ -3956,8 +3956,8 @@
   },
   {
     "Path": "服务端/tests/CombatShotClientTest.cpp",
-    "Bytes": 20018,
-    "SHA256": "F43ACC21B788C3C57A3E8793B7A0565F81C4B6F5DB111426451E9B2D3DF3BDBC"
+    "Bytes": 24159,
+    "SHA256": "03C72998C29DEDDBF425DFC65C1EEB8E471E5EA596C2591C6C69D7B9398C07C8"
   },
   {
     "Path": "服务端/tests/CombatShotLedgerTest.cpp",
@@ -3966,8 +3966,8 @@
   },
   {
     "Path": "服务端/tests/CombatShotServerTest.cpp",
-    "Bytes": 26558,
-    "SHA256": "DEF29AFEA79154213496B4F7C07C762013CDFAD8F31FA8D3576A7B67BC82578E"
+    "Bytes": 31481,
+    "SHA256": "4274992EC2491C78E38052394D216556155402B9E536C5714ACAD19036A9196F"
   },
   {
     "Path": "服务端/tests/EventGroupReaderTest.cpp",
@@ -4066,8 +4066,8 @@
   },
   {
     "Path": "服务端/tests/TestCombatShotServer.ps1",
-    "Bytes": 8141,
-    "SHA256": "6551F7B9486B6771FAAC13001BF58872D9633FCB2185A5DFD69A6AD191039EB1"
+    "Bytes": 8879,
+    "SHA256": "4AE42B8BF3B9F937C50FE85A1859DF0D3778D20FD62EA5BBD85AAD63EE66F7A2"
   },
   {
     "Path": "服务端/tests/TestFeaturePortSafety.ps1",
@@ -4101,8 +4101,8 @@
   },
   {
     "Path": "CHANGELOG.md",
-    "Bytes": 4535,
-    "SHA256": "399F166FB2EDE1EA705DAB005F6D138809BA450ED7DB77CE12007F9274CB7257"
+    "Bytes": 4681,
+    "SHA256": "79091C1B12652BF6E242D1AB7D7E5069ECF65E47EC6BF7128AC61B86263E3348"
   },
   {
     "Path": "docs/images/game-screenshot.png",

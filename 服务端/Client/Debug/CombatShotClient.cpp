@@ -19,6 +19,8 @@ static_assert(FIRE_EXTREME == DragonCombatShot::FireExtremeSkill, "Fire-extreme 
 static_assert(ICE_EXTREME == DragonCombatShot::IceExtremeSkill, "Ice-extreme canonical ID");
 static_assert(FIRE_ARROW == DragonCombatShot::FireArrowMagic &&
     ICE_ARROW == DragonCombatShot::IceArrowMagic, "Magic-arrow canonical IDs");
+static_assert(FLYING_SPARK == DragonCombatShot::FlyingSparkMagic &&
+    BLITZ_SPEAR == DragonCombatShot::BlitzSpearMagic, "Multi-projectile canonical IDs");
 
 namespace
 {
@@ -103,6 +105,18 @@ void CombatShotReceive(unsigned command, const void* data, size_t size)
         packet.nMagic = BYTE(cast.magic); packet.idCaster = cast.shot.caster;
         packet.idTarget = cast.shot.target; packet.nX = cast.shot.x; packet.nY = cast.shot.y;
         g_mgrBattle.RecvMagicExecuteWithAction(&packet, cast.shot.action);
+        return;
+    }
+    if (command == MagicBurstIssuedCommand && size == sizeof(BurstIssued))
+    {
+        BurstIssued cast = {};
+        memcpy(&cast, data, sizeof(cast));
+        if (!state.RecordBurst(cast, Hero->id, g_ClientTime, true)) return;
+        state.ForgetPending();
+        t_server_magic_execute packet = {};
+        packet.nMagic = BYTE(cast.skill); packet.idCaster = cast.caster;
+        packet.idTarget = cast.target; packet.nX = cast.x; packet.nY = cast.y;
+        g_mgrBattle.RecvMagicExecuteWithAction(&packet, cast.actions[0]);
         return;
     }
     if (command == BurstIssuedCommand && size == sizeof(BurstIssued))

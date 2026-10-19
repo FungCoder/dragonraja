@@ -18,6 +18,8 @@ static_assert(FIRE_ARROW == DragonCombatShot::FireArrowMagic &&
     ICE_ARROW == DragonCombatShot::IceArrowMagic, "Magic-arrow canonical IDs");
 static_assert(FIRE_BALL == DragonCombatShot::FireBallMagic &&
     ICE_BALL == DragonCombatShot::IceBallMagic, "Single-cast canonical IDs");
+static_assert(FLYING_SPARK == DragonCombatShot::FlyingSparkMagic &&
+    BLITZ_SPEAR == DragonCombatShot::BlitzSpearMagic, "Multi-projectile canonical IDs");
 
 namespace
 {
@@ -218,9 +220,10 @@ bool IssueProjectileMagic(int connection, const void* data, int size)
     if (!IsPlayerSession(connection) || !data || size != sizeof(t_client_magic_execute)) return false;
     t_client_magic_execute request = {};
     memcpy(&request, data, sizeof(request));
-    if (!IsSingleCastMagic(request.nMagic)) return false;
+    if (!IsProjectileCastMagic(request.nMagic)) return false;
+    const unsigned count = IsSingleCastMagic(request.nMagic) ? 1 : MagicBurstParts(request.nMagic);
     const PreparationIdentity owner = GetPlayerSessionIdentity(connection);
-    DragonGameplay::ShotAction action = MakeShotAction(connections[connection].chrlst, 1);
+    DragonGameplay::ShotAction action = MakeShotAction(connections[connection].chrlst, count);
     action.magic = request.nMagic;
     uint32_t nonce = 0;
     {
@@ -229,7 +232,7 @@ bool IssueProjectileMagic(int connection, const void* data, int size)
         if (found != ledgers.end()) nonce = found->second.Nonce(owner);
         if (nonce)
         {
-            if (nextAction == UINT64_MAX || !found->second.HasCapacity(owner, GetTickCount64())) return false;
+            if (nextAction > UINT64_MAX - count || !found->second.HasCapacity(owner, GetTickCount64())) return false;
             const uint64_t now = GetTickCount64();
             const auto previous = magicExecutions.find(connection);
             const uint64_t interval = uint64_t(MagicRepeatIntervalMs) *
@@ -237,7 +240,8 @@ bool IssueProjectileMagic(int connection, const void* data, int size)
             if (previous != magicExecutions.end() && previous->second.owner == owner &&
                 (now < previous->second.accepted_ms || now - previous->second.accepted_ms < interval)) return false;
             if (!g_pBattleManager->PrepareProjectileMagicExecute(connection, &request)) return false;
-            action.id = ++nextAction;
+            action.id = nextAction + 1;
+            nextAction += count;
             if (!found->second.Issue(owner, action, GetTickCount64())) return false;
             magicExecutions[connection] = {owner, now};
         }
@@ -246,7 +250,18 @@ bool IssueProjectileMagic(int connection, const void* data, int size)
     const ArrowIssued issued = {{Version, nonce, action.id, uint16_t(connection),
         request.idTarget, request.nX, request.nY, LifetimeMs}, request.nMagic};
     t_packet packet = {};
-    DragonCombatShot::WritePacket(packet, MagicIssuedCommand, issued);
+    if (count == 1) DragonCombatShot::WritePacket(packet, MagicIssuedCommand, issued);
+    else
+    {
+        BurstIssued burst = {};
+        burst.version = Version; burst.nonce = nonce;
+        burst.caster = uint16_t(connection); burst.target = request.idTarget;
+        burst.x = request.nX; burst.y = request.nY;
+        burst.skill = request.nMagic; burst.count = uint8_t(count);
+        burst.lifetime_ms = LifetimeMs;
+        for (unsigned part = 0; part < count; ++part) burst.actions[part] = action.id + part;
+        DragonCombatShot::WritePacket(packet, MagicBurstIssuedCommand, burst);
+    }
     QueuePacket(connections, connection, &packet, 1);
     return true;
 }

@@ -2744,6 +2744,7 @@ int HandleCommand( t_connection *c )
 			}
         case DragonCombatShot::AckCommand:
         case DragonCombatShot::IssuedCommand:
+        case DragonCombatShot::MagicBurstIssuedCommand:
         case DragonCombatShot::MagicIssuedCommand:
         case DragonCombatShot::ArrowIssuedCommand:
         case DragonCombatShot::BurstIssuedCommand:

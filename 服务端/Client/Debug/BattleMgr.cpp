@@ -539,7 +539,7 @@ void CBattleMgr::SendMagicCasting(BYTE nMagic)
 
 void CBattleMgr::SendMagicExecute(BYTE nMagic, LPCHARACTER pTarget, int nX, int nY)
 {
-    if (DragonCombatShot::IsSingleCastMagic(nMagic) && !CombatShotReady()) return;	//< CSD-TW-030606
+    if (DragonCombatShot::IsProjectileCastMagic(nMagic) && !CombatShotReady()) return;	//< CSD-TW-030606
 	if (pTarget == NULL)  pTarget = Hero;
 	// 마법 사용후 5초 이내에는 다시 캐스팅 할수 없도록 설정
 	Hero->castStartingTime = g_ClientTime + 4000;

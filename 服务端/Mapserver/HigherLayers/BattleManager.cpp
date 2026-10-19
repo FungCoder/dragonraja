@@ -941,7 +941,7 @@ void CBattleManager::RecvMagicCasting(WORD idCaster, t_client_magic_casting* pPa
 void CBattleManager::RecvMagicExecute(WORD idCaster, t_client_magic_execute* pPacket)
 {
     if (!pPacket) return;
-    if (DragonCombatShot::IsSingleCastMagic(pPacket->nMagic))
+    if (DragonCombatShot::IsProjectileCastMagic(pPacket->nMagic))
     {
         IssueProjectileMagic(idCaster, pPacket, sizeof(*pPacket));
         return;
@@ -951,7 +951,7 @@ void CBattleManager::RecvMagicExecute(WORD idCaster, t_client_magic_execute* pPa
 
 bool CBattleManager::PrepareProjectileMagicExecute(WORD idCaster, t_client_magic_execute* pPacket)
 {
-    return pPacket && DragonCombatShot::IsSingleCastMagic(pPacket->nMagic) &&
+    return pPacket && DragonCombatShot::IsProjectileCastMagic(pPacket->nMagic) &&
         RecvMagicExecuteImpl(idCaster, pPacket, false);
 }
 
@@ -1012,7 +1012,7 @@ bool CBattleManager::RecvMagicExecuteImpl(WORD idCaster, t_client_magic_execute*
 		goto MAGIC_FAIL;
 	}
 	
-    if (DragonCombatShot::IsSingleCastMagic(nMagic)) pCaster->SendCharInfoBasic(MP, pCaster->Mana);
+    if (DragonCombatShot::IsProjectileCastMagic(nMagic)) pCaster->SendCharInfoBasic(MP, pCaster->Mana);
 	pCaster->ClearMagic(false); // 마법 사용이 되었음을 설정
 	// CSD-030806
 	g_pLogManager->SaveMagicExecute(nMagic, pCaster, pTarget, nX, nY);

@@ -13,7 +13,8 @@
 enum { THROW_ARROW = 194, THROW_KNIFE = 195, THROW_FIRE_ARROW = 665,
     THROW_ICE_KNIFE = 666, THROW_SNOW_BALL = 193, THROW_WATER_BALL = 661,
     THROW_BIG_GULP = 663, MK_WARNING = 1, FIRE_ARROW = 29, ICE_ARROW = 38,
-    SPRITETYPE_ITEM = 50, TILE_SIZE = 32, FIRE_BALL = 30, ICE_BALL = 39 };
+    SPRITETYPE_ITEM = 50, TILE_SIZE = 32, FIRE_BALL = 30, ICE_BALL = 39,
+    FLYING_SPARK = 89, BLITZ_SPEAR = 100 };
 static struct CharacterFixture
 {
     unsigned id = 1;
@@ -59,6 +60,18 @@ struct BattleFixture
 static BattleFixture g_mgrBattle;
 #include "CombatShotClientProduction.inc"
 #include "CombatBurstGeneratorFixture.h"
+class MagicBurstDispatch : public CBattle
+{
+public:
+    void Dispatch(MAGICLIST* pEffect)
+    {
+        switch (pEffect->magicSerial)
+        {
+#include "MagicBurstDispatchProduction.inc"
+        default: std::abort();
+        }
+    }
+};
 static void CreateSingleCastRoot(t_server_magic_execute* packet, uint64_t action)
 {
     static CharacterFixture target;
@@ -332,6 +345,68 @@ int main()
         memcpy(&hit, sent.back().u.data, sizeof(hit));
         Require(hit.action == nextAction && sent.back().h.header.type == HitCommand,
             "spell projectile uses shared result format");
+    }
+    for (unsigned magic : {unsigned(FlyingSparkMagic), unsigned(BlitzSpearMagic)})
+    for (unsigned target : {1u, 2u})
+    {
+        nextAction += 1000;
+        BurstIssued cast = {};
+        cast.version = Version; cast.nonce = hello.nonce;
+        cast.caster = 1; cast.target = uint16_t(target); cast.x = 120; cast.y = 140;
+        cast.skill = uint16_t(magic); cast.count = uint8_t(MagicBurstParts(magic));
+        cast.lifetime_ms = LifetimeMs;
+        for (unsigned part = 0; part < cast.count; ++part) cast.actions[part] = nextAction + part;
+        const unsigned beforeCast = magicAnimations, beforeThrow = animations;
+        CombatShotReceive(MagicBurstIssuedCommand, &cast, sizeof(cast) - 1);
+        auto bad = cast; bad.level = 1;
+        CombatShotReceive(MagicBurstIssuedCommand, &bad, sizeof(bad));
+        bad = cast; bad.skill = MultiFireSkill;
+        CombatShotReceive(MagicBurstIssuedCommand, &bad, sizeof(bad));
+        bad = cast; ++bad.count;
+        CombatShotReceive(MagicBurstIssuedCommand, &bad, sizeof(bad));
+        bad = cast; bad.actions[1] = bad.actions[0];
+        CombatShotReceive(MagicBurstIssuedCommand, &bad, sizeof(bad));
+        bad = cast; bad.actions[7] = 100;
+        CombatShotReceive(MagicBurstIssuedCommand, &bad, sizeof(bad));
+        bad = cast; ++bad.nonce;
+        CombatShotReceive(MagicBurstIssuedCommand, &bad, sizeof(bad));
+        CombatShotReceive(BurstIssuedCommand, &cast, sizeof(cast));
+        Require(magicAnimations == beforeCast && animations == beforeThrow,
+            "malformed magic batches and cross-family envelopes never animate");
+        g_lpET[magic].next_Effect = magic == FlyingSparkMagic ? 460 : 463;
+        generated.clear();
+        CombatShotReceive(MagicBurstIssuedCommand, &cast, sizeof(cast));
+        CombatShotReceive(MagicBurstIssuedCommand, &cast, sizeof(cast));
+        Require(magicAnimations == beforeCast + 1 && generated.size() == 1 && animations == beforeThrow,
+            "magic batch uses actual spell factory once, never weapon throw animation");
+        MAGICLIST root = generated[0];
+        Require(root.shot_batch == nextAction && root.shot_action == 0 &&
+            root.magicSerial == magic && root.magicSubNum == (target == 1 ? 1 : 0),
+            "magic batch root retains type, target mode and explicit batch ID");
+        Require(!CombatShotTakeBurst(1, target, magic), "magic batch bypasses pending animation binding");
+        Hero->excute_MagicNum = 999;
+        generated.clear();
+        MagicBurstDispatch generator;
+        generator.Dispatch(&root);
+        Require(generated.size() == cast.count, "real generator creates exact authorized projectile count");
+        for (unsigned part = 0; part < cast.count; ++part)
+        {
+            const auto& child = generated[part];
+            Require(child.shot_action == nextAction + part && child.magicSerial == magic &&
+                child.magicNum == (magic == FlyingSparkMagic ? 460 : 463),
+                "each child retains unique ID and immutable type after selection change");
+            CombatShotSendHit(child.shot_action, 2, 120, 140, false);
+            memcpy(&hit, sent.back().u.data, sizeof(hit));
+            Require(hit.action == nextAction + part, "each spell projectile reports its own hit ID");
+        }
+        generator.Dispatch(&root);
+        Require(generated.size() == cast.count, "repeated root dispatch cannot spawn more authorized children");
+        nextAction += 100;
+        for (unsigned part = 0; part < cast.count; ++part) cast.actions[part] = nextAction + part;
+        generated.clear(); CombatShotReceive(MagicBurstIssuedCommand, &cast, sizeof(cast));
+        root = generated[0]; generated.clear(); g_ClientTime += LifetimeMs;
+        generator.Dispatch(&root);
+        Require(generated.empty(), "expired magic batch has no legacy fallback");
     }
     const size_t before = sent.size();
     CombatShotReset();

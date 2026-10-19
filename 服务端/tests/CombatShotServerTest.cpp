@@ -20,7 +20,7 @@ enum { DRAGON_CONNECTIONS_START = 1, DRAGON_MAX_CONNECTIONS = 8,
     CMD_SCRIPT_MESSAGE_BOX = 10273, TILE_SIZE = 32,
     REM_AREA_X = 21 * 32, REM_AREA_Y = 17 * 32, ALIVE_ = 1,
     Num_Of_Magic = 256, REMOVE_CURSE = 78, MP = 1, MK_WARNING = 2, MK_NORMAL = 3,
-    FIRE_BALL = 30, ICE_BALL = 39, CON_FROZEN = 2 };
+    FIRE_BALL = 30, ICE_BALL = 39, CON_FROZEN = 2, FLYING_SPARK = 89, BLITZ_SPEAR = 100 };
 static int MapNumber = 5;
 static uint64_t nowMs = 100;
 static DWORD g_curr_time = 10;
@@ -477,6 +477,73 @@ int main()
             "unnegotiated spell does not charge mana");
         nowMs += 201; RecvCombatShotHello(1, &hello, sizeof(hello));
     }
+    for (unsigned magic : {unsigned(FlyingSparkMagic), unsigned(BlitzSpearMagic)})
+    {
+        ResetCombatShotSession(1); nowMs += 201;
+        RecvCombatShotHello(1, &hello, sizeof(hello));
+        caster.active = 0; caster.magic = caster.preparedMagic = magic;
+        caster.prepared = caster.doing = caster.locked = caster.learned = caster.filterAllowed = true;
+        caster.Mana = 10000; caster.hasArrow = false;
+        t_client_magic_execute request = {};
+        request.nMagic = BYTE(magic); request.idTarget = 1; request.nX = 120; request.nY = 140;
+        const unsigned beforeMagic = magicSettlements, beforePrepare = prepareCalls;
+        battle.RecvMagicExecute(1, &request);
+        Require(sent.back().h.header.type == MagicBurstIssuedCommand &&
+            sent.back().h.header.size == sizeof(BurstIssued) && caster.Mana == 9990 &&
+            prepareCalls == beforePrepare + 1, "multi-projectile spell pays once through original execute handler");
+        BurstIssued cast = {}; memcpy(&cast, sent.back().u.data, sizeof(cast));
+        Require(cast.skill == magic && cast.count == MagicBurstParts(magic) && cast.level == 0 &&
+            cast.target == 1 && cast.x == 120 && cast.y == 140,
+            "server fixes 3/5 child budget and preserves ground-aim execution");
+        for (unsigned part = 0; part < MaxBurstParts; ++part)
+            Require(cast.actions[part] == (part < cast.count ? cast.actions[0] + part : 0),
+                "contiguous unique child IDs with zero unused slots");
+        t_client_magic_result legacy = {};
+        legacy.nMagic = BYTE(magic); legacy.idTarget = 2; legacy.nX = legacy.nY = 100;
+        battle.RecvMagicResult(1, &legacy);
+        Require(magicSettlements == beforeMagic, "legacy magic result cannot bypass child budget");
+        caster.magic = FireArrowMagic;
+        auto first = BurstHitFor(cast, 0);
+        std::thread firstHit([&] { Submit(first); }), replay([&] { Submit(first); });
+        firstHit.join(); replay.join();
+        auto invalid = BurstHitFor(cast, 1); invalid.target = 65000;
+        Submit(invalid); Submit(BurstHitFor(cast, 1));
+        for (unsigned part = 2; part < cast.count; ++part)
+        { Submit(BurstHitFor(cast, part)); Submit(BurstHitFor(cast, part)); }
+        Require(magicSettlements == beforeMagic + cast.count - 1 && caster.Mana == 9990 &&
+            settledMagic == magic && filteredMagic == magic && caster.magic == FireArrowMagic,
+            "each valid child settles once with snapshot type; invalid child spent independently");
+        auto extra = first; extra.action = cast.actions[0] + cast.count;
+        Submit(extra);
+        Require(magicSettlements == beforeMagic + cast.count - 1, "unissued extra child is refused");
+        caster.magic = magic;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == 9990,
+            "multi-projectile execution shares server cadence before payment");
+        nowMs += MagicRepeatIntervalMs;
+        Require(IssueProjectileMagic(1, &request, sizeof(request)), "next batch accepted after cadence");
+        BurstIssued expired = {}; memcpy(&expired, sent.back().u.data, sizeof(expired));
+        Require(expired.actions[0] > cast.actions[cast.count - 1], "new batch IDs never overlap old children");
+        nowMs += LifetimeMs;
+        for (unsigned part = 0; part < expired.count; ++part) Submit(BurstHitFor(expired, part));
+        Require(magicSettlements == beforeMagic + cast.count - 1, "entire expired batch cannot settle");
+        Require(IssueProjectileMagic(1, &request, sizeof(request)), "cancellable batch accepted");
+        memcpy(&expired, sent.back().u.data, sizeof(expired)); CancelCombatShots(1);
+        for (unsigned part = 0; part < expired.count; ++part) Submit(BurstHitFor(expired, part));
+        Require(magicSettlements == beforeMagic + cast.count - 1, "death cancellation removes all children");
+        nowMs += MagicRepeatIntervalMs; caster.Mana = 0;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)), "unpaid batch refused");
+        caster.Mana = 10000; caster.magic = magic; caster.prepared = true;
+        Require(IssueProjectileMagic(1, &request, sizeof(request)), "batch occupies one shared ledger slot");
+        caster.magic = 0; caster.hasArrow = true;
+        for (unsigned index = 1; index < MaxOutstanding; ++index)
+            Require(IssueCombatShot(1, 2, 100, 100), "physical releases fill remaining shared slots");
+        caster.magic = magic; nowMs += MagicRepeatIntervalMs;
+        const int fullMana = caster.Mana;
+        Require(!IssueProjectileMagic(1, &request, sizeof(request)) && caster.Mana == fullMana,
+            "magic batch shares 64 release slots without charging rejected batch");
+        CancelCombatShots(1);
+    }
+    ResetCombatShotSession(1); nowMs += 201; RecvCombatShotHello(1, &hello, sizeof(hello));
     caster.magic = caster.preparedMagic = FireBallMagic; caster.prepared = true;
     caster.Mana = 100; caster.state = 0;
     t_client_magic_execute timed = {};

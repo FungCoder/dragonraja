@@ -34,20 +34,20 @@ public:
         pending_burst_ = false;
         pending_magic_ = magic;
     }
-    bool CanAcceptBurst(const DragonCombatShot::BurstIssued& shot, unsigned actor) const
+    bool CanAcceptBurst(const DragonCombatShot::BurstIssued& shot, unsigned actor, bool magicBurst = false) const
     {
         using namespace DragonCombatShot;
         if (!Ready() || shot.version != Version || shot.nonce != nonce_ || shot.caster != actor ||
-            shot.count != BurstParts(shot.skill, shot.level) || !shot.count ||
+            shot.count != (magicBurst ? (shot.level == 0 ? MagicBurstParts(shot.skill) : 0) : BurstParts(shot.skill, shot.level)) || !shot.count ||
             shot.lifetime_ms != LifetimeMs || shot.actions[0] <= last_issued_ ||
             shot.actions[0] > UINT64_MAX - (shot.count - 1)) return false;
         for (unsigned part = 0; part < MaxBurstParts; ++part)
             if (shot.actions[part] != (part < shot.count ? shot.actions[0] + part : 0)) return false;
         return true;
     }
-    bool RecordBurst(const DragonCombatShot::BurstIssued& shot, unsigned actor, uint32_t now)
+    bool RecordBurst(const DragonCombatShot::BurstIssued& shot, unsigned actor, uint32_t now, bool magicBurst = false)
     {
-        if (!CanAcceptBurst(shot, actor)) return false;
+        if (!CanAcceptBurst(shot, actor, magicBurst)) return false;
         for (auto entry = bursts_.begin(); entry != bursts_.end(); )
             if (Expired(entry->second, now)) entry = bursts_.erase(entry); else ++entry;
         if (bursts_.size() >= DragonCombatShot::MaxOutstanding) return false;

@@ -271,7 +271,7 @@ bool CMagicSys::Apply(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int 
 
 bool CMagicSys::ApplyWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, int nMagic, int nX, int nY, bool bFail, uint64_t action)
 {
-    if (pCaster == Hero && DragonCombatShot::IsSingleCastMagic(nMagic) && !bFail && !action) return false;
+    if (pCaster == Hero && DragonCombatShot::IsProjectileCastMagic(nMagic) && !bFail && !action) return false;
 	if (nMagic != RELIEF_AUTHORITY)	// 구원의 빛이 아니고
 	{
 		if (!IsAttackAble(pTarget))	// 죽어 있거나 기자 모드일 경우 
@@ -288,7 +288,7 @@ bool CMagicSys::ApplyWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, int nM
 		goto MAGIC_FIAL;
 	}
 	
-	if (Hero == pCaster && !DragonCombatShot::IsSingleCastMagic(nMagic))
+	if (Hero == pCaster && !DragonCombatShot::IsProjectileCastMagic(nMagic))
 	{	//시전 클라이턴트의 잔여 MP가 마법을 사용하는데 필요한 MP보다 많고 죽지 않은 경우 
 		if (SCharacterData.nCharacterHP > 0 && SCharacterData.nCharacterMP >= g_lpMT[nMagic].exhaust_MP)
 		{
@@ -985,11 +985,11 @@ bool CMagicSys::AddEffectWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, in
 		{ 
 			if (pCaster != pTarget)
 			{	// 대상자에게 마법 시행
-				::InsertMagic(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail);
+				::InsertMagicWithBatch(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail, 0, action);
 			}
 			else	
 			{ // 시전자에게 마법 시행				
-				::InsertMagic(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail);
+				::InsertMagicWithBatch(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail, 0, action);
 			}
 			
 			break;
@@ -1066,11 +1066,11 @@ bool CMagicSys::AddEffectWithAction(LPCHARACTER pCaster, LPCHARACTER pTarget, in
 		{ 
 			if (pCaster != pTarget)
 			{	// 대상자에게 마법 시행
-				::InsertMagic(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail);
+				::InsertMagicWithBatch(pCaster, pTarget, nMagic, 0, 0, 0, 0, 0, bPattern, 0, bFail, 0, action);
 			}
 			else	
 			{ // 시전자에게 마법 시행				
-				::InsertMagic(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail);
+				::InsertMagicWithBatch(pCaster, pTarget, nMagic, 1, 0, 0, nX, nY, bPattern, 0, bFail, 0, action);
 			}
 			
 			break;

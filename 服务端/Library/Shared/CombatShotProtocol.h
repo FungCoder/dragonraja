@@ -5,15 +5,15 @@
 
 namespace DragonCombatShot
 {
-enum { Version = 5, HelloCommand = 31410, AckCommand = 31411,
+enum { Version = 6, HelloCommand = 31410, AckCommand = 31411,
     IssuedCommand = 31412, HitCommand = 31413, BurstIssuedCommand = 31414,
-    ArrowIssuedCommand = 31415, MagicIssuedCommand = 31416 };
+    ArrowIssuedCommand = 31415, MagicIssuedCommand = 31416, MagicBurstIssuedCommand = 31417 };
 // New protocol policy, not a claimed timeout from the reference client.
 enum { LifetimeMs = 15000, MaxOutstanding = 64, MaxBurstParts = 8,
     MultiFireSkill = 228, FleetMissileSkill = 229, ConvertingArmorSkill = 230,
     FireExtremeSkill = 232, IcingBlastSkill = 239, SharkMissileSkill = 241,
     IceExtremeSkill = 244, FireArrowMagic = 29, IceArrowMagic = 38,
-    FireBallMagic = 30, IceBallMagic = 39 };
+    FireBallMagic = 30, IceBallMagic = 39, FlyingSparkMagic = 89, BlitzSpearMagic = 100 };
 // Existing CBattleMgr::SendMagicExecute interval, shared with server enforcement.
 enum { MagicRepeatIntervalMs = 800 };
 inline bool IsMagicArrow(unsigned magic)
@@ -24,9 +24,17 @@ inline bool IsSingleCastMagic(unsigned magic)
 {
     return magic == FireBallMagic || magic == IceBallMagic;
 }
+inline unsigned MagicBurstParts(unsigned magic)
+{
+    return magic == FlyingSparkMagic ? 3 : (magic == BlitzSpearMagic ? 5 : 0);
+}
+inline bool IsProjectileCastMagic(unsigned magic)
+{
+    return IsSingleCastMagic(magic) || MagicBurstParts(magic) != 0;
+}
 inline bool IsVersionedMagic(unsigned magic)
 {
-    return IsMagicArrow(magic) || IsSingleCastMagic(magic);
+    return IsMagicArrow(magic) || IsProjectileCastMagic(magic);
 }
 inline bool IsBurstSkill(unsigned skill)
 {
